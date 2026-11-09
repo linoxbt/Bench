@@ -18,3 +18,4 @@ artifacts/*
 !contracts/evm/artifacts/
 contracts/evm/artifacts/*
 !contracts/evm/artifacts/BenchUSD.json
+next-env.d.ts

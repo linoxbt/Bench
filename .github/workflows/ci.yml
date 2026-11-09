@@ -1,0 +1,48 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  contract:
+    name: contract (genvm-lint + direct tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Cache the GenVM SDK that genvm-lint downloads (~200 MB)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/genvm-linter
+            ~/.cache/gltest-direct
+          key: genvm-${{ hashFiles('requirements.txt') }}-v0.2.16
+      - run: pip install -r requirements.txt
+      - run: genvm-lint check contracts/bench_judge.py
+      - run: genvm-lint check contracts/probe/gate_probe.py
+      - run: pytest tests/direct -p gltest -q
+
+  typescript:
+    name: typescript (typecheck, unit, local Alkahest, web build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -F @bench/core build && pnpm -F @bench/cli build
+      - run: pnpm -F @bench/core typecheck && pnpm -F @bench/cli typecheck && pnpm -F @bench/web typecheck
+      - run: pnpm -F @bench/core test
+      - name: Local Alkahest lifecycle (real bytecode on a Hardhat node)
+        run: pnpm vitest run --config tests/local/vitest.config.ts
+      - name: Web build
+        run: pnpm -F @bench/web build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"

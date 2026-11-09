@@ -1,0 +1,63 @@
+import "server-only";
+import {
+  ALKAHEST_BRADBURY,
+  getArbitration,
+  getCase,
+  getEscrow,
+  getTx,
+  genlayer,
+  juryFromTx,
+  listCases,
+  walletFromKey,
+  type BenchConfig,
+  type Case,
+  type EscrowInfo,
+  type Jury,
+} from "@bench/core";
+import { generatePrivateKey } from "viem/accounts";
+import type { Hex } from "viem";
+import { PUBLIC } from "./config";
+
+/** Read-only: a throwaway key only satisfies the client constructors; nothing is ever signed with it. */
+const reader = () => walletFromKey(generatePrivateKey());
+const cfg = (): BenchConfig => ({ addresses: ALKAHEST_BRADBURY, judge: PUBLIC.judge! });
+
+async function settle<T>(p: Promise<T>): Promise<{ ok: T } | { err: string }> {
+  try {
+    return { ok: await p };
+  } catch (e) {
+    return { err: e instanceof Error ? e.message.split("\n")[0]! : String(e) };
+  }
+}
+
+export type CaseView = {
+  escrow: { ok: EscrowInfo } | { err: string };
+  verdict: { ok: Case | undefined } | { err: string };
+  arbitration: { ok: { decision: boolean } | undefined } | { err: string };
+  jury?: { ok: Jury } | { err: string };
+};
+
+export async function readCase(escrowUid: Hex, fulfillmentUid: Hex, tx?: Hex): Promise<CaseView> {
+  const gl = genlayer({ network: "bradbury" });
+  const w = reader();
+  const [escrow, verdict, arbitration, jury] = await Promise.all([
+    settle(getEscrow(w, escrowUid, cfg())),
+    settle(getCase(gl, fulfillmentUid, PUBLIC.judge)),
+    settle(getArbitration(w, escrowUid, fulfillmentUid, cfg())),
+    tx ? settle(getTx(gl, tx).then(juryFromTx)) : Promise.resolve(undefined),
+  ]);
+  return { escrow, verdict, arbitration, jury };
+}
+
+export async function recentCases(limit = 8): Promise<{ id: string; c?: Case }[]> {
+  if (!PUBLIC.judge) return [];
+  const gl = genlayer({ network: "bradbury" });
+  const r = await settle(
+    (async () => {
+      const total = Number(await gl.client.readContract({ address: PUBLIC.judge!, functionName: "case_count", args: [] }));
+      const ids = await listCases(gl, Math.max(0, total - limit), limit, PUBLIC.judge);
+      return Promise.all(ids.reverse().map(async (id) => ({ id, c: await getCase(gl, id, PUBLIC.judge).catch(() => undefined) })));
+    })(),
+  );
+  return "ok" in r ? r.ok : [];
+}

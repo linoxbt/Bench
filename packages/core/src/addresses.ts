@@ -1,24 +1,11 @@
 import { getAddress, type Address } from "viem";
 
 /**
- * Alkahest on GenLayer Chain (4221), from arkhai-io/alkahest
- * contracts/deployments/deployment_genlayer_bradbury.json. Verify with scripts/day1-gate.sh.
- *
+ * Alkahest on GenLayer Chain (4221). Lives in alkahest-bradbury.ts, which scripts/deploy-alkahest.ts regenerates.
  * Always pass this full map to makeClient: alkahest-ts 1.1.2's "GenLayer Bradbury" preset
  * fills most contracts with 0x0 (Cantina ALKA-27/28).
  */
-export const ALKAHEST_BRADBURY = {
-  eas: "0xaC18Fa0DE3123215404a0C5f6d02ed9B2D0D0d98",
-  easSchemaRegistry: "0xA1F9076932f6eEA0D90BBfA1D6E81D001012645D",
-  erc20EscrowObligation: "0x2A7df117e45D93d34a7893CC3aE8B105Ae0B561C",
-  erc20PaymentObligation: "0x59A9c929778Ad2cC4D5DB6151bDEf0F9Fa7A068C",
-  erc20BarterUtils: "0x52De4B30721b3E3660A79da7491a9B2F8a9cB1D5",
-  nativeTokenEscrowObligation: "0x5bf7c8b0d60d05af0a3De531EB876De271E80dbc",
-  commitRevealObligation: "0xb822aA07F55a8B75Ee133ede1f21C4E49DE7952f",
-  stringObligation: "0xB2c808911E84E80156101983897Da7c80e13cB47",
-  trustedOracleArbiter: "0xe968dFA581B8aBb94eC5F24d0b56163DE69511fD",
-  trivialArbiter: "0x847F69d27E4F1A8a115aCa3F4358B079706dc9CE",
-} as const satisfies Record<string, Address>;
+export { ALKAHEST_BRADBURY, ALKAHEST_BRADBURY_DEPLOYMENT } from "./alkahest-bradbury.js";
 
 /** Alkahest on Base Sepolia (84532), Plan B only. */
 export const ALKAHEST_BASE_SEPOLIA = {

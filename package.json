@@ -13,9 +13,16 @@
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "lint:contract": "genvm-lint check contracts/bench_judge.py",
+    "lint:contract": "genvm-lint check contracts/bench_judge.py && genvm-lint check contracts/probe/gate_probe.py",
     "test:contract": "pytest tests/direct -p gltest",
-    "e2e": "vitest run --config tests/e2e/vitest.config.ts"
+    "e2e": "vitest run --config tests/e2e/vitest.config.ts",
+    "gate": "bash scripts/day1-gate.sh",
+    "gate:probe": "tsx scripts/day1-gate-probe.ts",
+    "deploy:judge": "tsx scripts/deploy-judge.ts",
+    "deploy:token": "pnpm -F @bench/evm build && pnpm -F @bench/evm deploy:token",
+    "test:local": "pnpm -F @bench/core build && pnpm -F @bench/cli build && vitest run --config tests/local/vitest.config.ts",
+    "bench": "node packages/cli/dist/index.js",
+    "deploy:alkahest": "tsx scripts/deploy-alkahest.ts"
   },
   "devDependencies": {
     "@types/node": "22.20.5",
@@ -24,6 +31,7 @@
     "hardhat": "2.29.1",
     "typescript": "5.9.3",
     "viem": "2.57.17",
-    "vitest": "5.1.0"
+    "vitest": "5.1.0",
+    "tsx": "4.23.15"
   }
 }

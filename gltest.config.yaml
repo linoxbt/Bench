@@ -1,0 +1,10 @@
+# genlayer-test networks. Accounts come from the environment, never from this file.
+networks:
+  default: studionet
+  studionet:
+    url: "https://studio.genlayer.com/api"
+    leader_only: false
+  testnet_bradbury:
+    url: "https://rpc-bradbury.genlayer.com"
+paths:
+  contracts: "contracts"

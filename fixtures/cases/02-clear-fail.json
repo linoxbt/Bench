@@ -1,0 +1,8 @@
+{
+  "id": "clear-fail",
+  "title": "Clear fail: hype words, missing the free tier",
+  "demand": "Landing-page hero copy for a note-taking app. Under 60 words. Must mention the free tier and that no credit card is needed. No hype words (revolutionary, game-changing, best ever, synergy).",
+  "rubric": "Fulfilled only if every explicit requirement is met. Count words; any listed hype word fails it.",
+  "delivery": "The most revolutionary, game-changing note app ever built. Unlock total productivity synergy and transform the way you think. Buy now!",
+  "expected": false
+}

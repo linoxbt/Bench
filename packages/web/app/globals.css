@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #07090a;
+  --color-panel: #0d1112;
+  --color-line: #1d2527;
+  --color-dim: #7d8a8c;
+  --color-text: #d7dedf;
+  --color-teal: #2dd4bf;
+  --color-pass: #2dd4bf;
+  --color-fail: #f87171;
+  --color-warn: #fbbf24;
+  --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+html,
+body {
+  background: var(--color-ink);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-teal) 35%, transparent);
+}
+
+/* Corner-bracket card */
+.bracket {
+  position: relative;
+  background: var(--color-panel);
+  border: 1px solid var(--color-line);
+}
+.bracket::before,
+.bracket::after {
+  content: "";
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-color: var(--color-teal);
+  border-style: solid;
+  pointer-events: none;
+}
+.bracket::before {
+  top: -1px;
+  left: -1px;
+  border-width: 2px 0 0 2px;
+}
+.bracket::after {
+  bottom: -1px;
+  right: -1px;
+  border-width: 0 2px 2px 0;
+}
+
+.label {
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+
+input,
+textarea,
+select {
+  background: var(--color-ink);
+  border: 1px solid var(--color-line);
+  color: var(--color-text);
+  padding: 0.6rem 0.75rem;
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  outline: none;
+}
+input:focus,
+textarea:focus {
+  border-color: var(--color-teal);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--color-teal);
+  color: var(--color-teal);
+  padding: 0.55rem 1rem;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  transition: background 120ms;
+}
+.btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-teal) 14%, transparent);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn-solid {
+  background: var(--color-teal);
+  color: var(--color-ink);
+}
+.btn-solid:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-teal) 85%, white);
+}
+
+@keyframes flip-in {
+  from {
+    transform: rotateX(90deg);
+    opacity: 0;
+  }
+  to {
+    transform: rotateX(0);
+    opacity: 1;
+  }
+}
+.flip-in {
+  animation: flip-in 420ms ease-out both;
+}
