@@ -5,21 +5,7 @@
  * exactly the call BenchJudge emits on finality: TrustedOracleArbiter.arbitrate(fulfillmentUid, nlaDemandData, verdict).
  * Everything else (escrow, commit-reveal delivery, collect, reclaim, packages/core) is the real code path.
  */
-import { readFileSync } from "node:fs";
-import { deployAlkahest } from "alkahest-ts";
-import {
-  createTestClient,
-  createWalletClient,
-  defineChain,
-  getAddress,
-  http,
-  parseAbi,
-  parseUnits,
-  publicActions,
-  type Address,
-  type Hex,
-} from "viem";
-import { privateKeyToAccount } from "viem/accounts";
+import { parseUnits, publicActions, type Address, type Hex } from "viem";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
   bondClaimed,
@@ -33,38 +19,7 @@ import {
   requestArbitration,
   type BenchConfig,
 } from "../../packages/core/src/index.js";
-import { LOCAL_RPC } from "./global-setup.js";
-
-const chain = defineChain({
-  id: 4221,
-  name: "Local GenLayer Chain",
-  nativeCurrency: { name: "GEN", symbol: "GEN", decimals: 18 },
-  rpcUrls: { default: { http: [LOCAL_RPC] } },
-});
-
-// Throwaway keys for the local chain only; funded in beforeAll.
-const KEYS = {
-  deployer: "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
-  buyer: "0x59c6995e998f97a5a0044966f0945389dc9c86dae88c7a8412f4603b6b78690d",
-  seller: "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fa9e5f2b2b6d93a",
-  stranger: "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6",
-} as const;
-
-/** Stand-in for BenchJudge's address (the oracle named in every escrow). */
-const BENCH_JUDGE = getAddress("0xbe0c4000000000000000000000000000000ce000");
-
-const wallet = (key: Hex) =>
-  createWalletClient({ account: privateKeyToAccount(key), chain, transport: http(LOCAL_RPC) });
-const testClient = createTestClient({ chain, mode: "hardhat", transport: http(LOCAL_RPC) }).extend(publicActions);
-
-const ERC20 = parseAbi([
-  "function balanceOf(address) view returns (uint256)",
-  "function mint(address,uint256)",
-]);
-const ARBITER = parseAbi(["function arbitrate(bytes32 fulfillmentUid, bytes demand, bool decision)"]);
-const EAS_ABI = parseAbi([
-  "function getAttestation(bytes32 uid) view returns ((bytes32 uid, bytes32 schema, uint64 time, uint64 expirationTime, uint64 revocationTime, bytes32 refUID, address recipient, address attester, bool revocable, bytes data))",
-]);
+import { ARBITER, BENCH_JUDGE, EAS_ABI, ERC20, KEYS, benchJudgeArbitrates as arbitrate, deployLocal, now, testClient, wallet } from "./fixture.js";
 
 let cfg: BenchConfig;
 let token: Address;
@@ -72,54 +27,13 @@ const buyer = wallet(KEYS.buyer);
 const seller = wallet(KEYS.seller);
 const DEMAND = { demand: "Landing copy under 120 words that mentions the free tier", rubric: "Fail on any hype word." };
 
-async function now(): Promise<bigint> {
-  return (await testClient.getBlock()).timestamp;
-}
-
-/** Send exactly what BenchJudge's emit().arbitrate(...) produces on finality. */
-async function benchJudgeArbitrates(fulfillmentUid: Hex, verdict: boolean) {
-  await testClient.impersonateAccount({ address: BENCH_JUDGE });
-  await testClient.setBalance({ address: BENCH_JUDGE, value: parseUnits("1", 18) });
-  const judge = createWalletClient({ account: BENCH_JUDGE, chain, transport: http(LOCAL_RPC) });
-  const hash = await judge.writeContract({
-    address: cfg.addresses.trustedOracleArbiter,
-    abi: ARBITER,
-    functionName: "arbitrate",
-    args: [fulfillmentUid, encodeNlaDemand(DEMAND), verdict],
-  });
-  await testClient.waitForTransactionReceipt({ hash });
-  await testClient.stopImpersonatingAccount({ address: BENCH_JUDGE });
-}
-
+const benchJudgeArbitrates = (fulfillmentUid: Hex, verdict: boolean) => arbitrate(cfg, fulfillmentUid, DEMAND, verdict);
 const balance = (a: Address) => testClient.readContract({ address: token, abi: ERC20, functionName: "balanceOf", args: [a] });
 const attestation = (uid: Hex) =>
   testClient.readContract({ address: cfg.addresses.eas, abi: EAS_ABI, functionName: "getAttestation", args: [uid] });
 
 beforeAll(async () => {
-  for (const key of Object.values(KEYS)) {
-    await testClient.setBalance({ address: privateKeyToAccount(key).address, value: parseUnits("100", 18) });
-  }
-  const deployer = wallet(KEYS.deployer).extend(publicActions);
-  const deployed = await deployAlkahest(
-    async (abi, bytecode, args) => {
-      const hash = await deployer.deployContract({ abi, bytecode, args });
-      const { contractAddress } = await deployer.waitForTransactionReceipt({ hash });
-      return contractAddress!;
-    },
-    { eas: true, scope: "all" },
-  );
-  cfg = { addresses: deployed as BenchConfig["addresses"], judge: BENCH_JUDGE };
-
-  const art = JSON.parse(readFileSync(new URL("../../contracts/evm/artifacts/BenchUSD.json", import.meta.url), "utf8"));
-  const hash = await deployer.deployContract({ abi: art.abi, bytecode: art.bytecode, args: [] });
-  token = (await deployer.waitForTransactionReceipt({ hash })).contractAddress!;
-  const mint = await deployer.writeContract({
-    address: token,
-    abi: ERC20,
-    functionName: "mint",
-    args: [buyer.account.address, parseUnits("1000", 18)],
-  });
-  await deployer.waitForTransactionReceipt({ hash: mint });
+  ({ cfg, token } = await deployLocal());
 });
 
 describe("Bench on Alkahest (local EVM)", () => {

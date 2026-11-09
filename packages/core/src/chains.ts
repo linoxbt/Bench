@@ -7,7 +7,7 @@ export const genlayerChain: Chain = defineChain({
   id: 4221,
   name: "GenLayer Chain (Testnet Bradbury)",
   nativeCurrency: { name: "GEN", symbol: "GEN", decimals: 18 },
-  rpcUrls: { default: { http: [process.env.GENLAYER_CHAIN_RPC ?? "https://rpc.testnet-chain.genlayer.com"] } },
+  rpcUrls: { default: { http: [(typeof process !== "undefined" ? process.env?.GENLAYER_CHAIN_RPC : undefined) ?? "https://rpc.testnet-chain.genlayer.com"] } },
   blockExplorers: { default: { name: "GenLayer Chain Explorer", url: GENLAYER_CHAIN_EXPLORER } },
   testnet: true,
 });

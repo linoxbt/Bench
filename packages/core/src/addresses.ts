@@ -32,12 +32,13 @@ export const ALKAHEST_BASE_SEPOLIA = {
 export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as const;
 
 /** BenchJudge's address on Testnet Bradbury. Set after `pnpm deploy:judge` (see README). */
+const env = (name: string): string | undefined => (typeof process !== "undefined" ? process.env?.[name] : undefined);
 const envAddress = (v: string | undefined): Address => getAddress((v ?? ZERO_ADDRESS).toLowerCase());
 
-export const BENCH_JUDGE = envAddress(process.env.BENCH_JUDGE);
+export const BENCH_JUDGE = envAddress(env("BENCH_JUDGE") ?? env("NEXT_PUBLIC_BENCH_JUDGE"));
 
 /** BenchUSD demo token on chain 4221. Set after deploying contracts/evm/BenchUSD.sol. */
-export const BENCH_USD = envAddress(process.env.BENCH_USD);
+export const BENCH_USD = envAddress(env("BENCH_USD") ?? env("NEXT_PUBLIC_BENCH_USD"));
 
 export function requireDeployed(name: string, address: Address): Address {
   if (address.toLowerCase() === ZERO_ADDRESS) {

@@ -29,7 +29,15 @@ export type BenchConfig = {
   judge: Address;
 };
 
-export const defaultConfig = (): BenchConfig => ({ addresses: ALKAHEST_BRADBURY, judge: BENCH_JUDGE });
+/**
+ * Defaults to Testnet Bradbury. BENCH_ALKAHEST_ADDRESSES (a JSON object of contract addresses) overrides
+ * individual contracts, e.g. for a local Alkahest deployment or a redeploy after a failed Day 1 gate.
+ */
+export const defaultConfig = (): BenchConfig => {
+  const override = typeof process !== "undefined" ? process.env?.BENCH_ALKAHEST_ADDRESSES : undefined;
+  const addresses = override ? { ...ALKAHEST_BRADBURY, ...(JSON.parse(override) as Partial<ChainAddresses>) } : ALKAHEST_BRADBURY;
+  return { addresses, judge: BENCH_JUDGE };
+};
 
 /** Commit bond posted by the seller, in wei, and the reveal window in seconds. */
 export const COMMIT_BOND_WEI = 1n;
