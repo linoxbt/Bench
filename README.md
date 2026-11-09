@@ -16,7 +16,7 @@ git clone https://github.com/linoxbt/Bench bench && cd bench
 pnpm install && pnpm build                     # core, CLI, viewer
 cp .env.example .env                            # fill in testnet keys + BENCH_JUDGE / BENCH_USD
 set -a; . ./.env; set +a
-pnpm bench preview --demand "A haiku about rain" --delivery "Rain taps the tin roof / ..."   # BENCH_NETWORK=studionet
+BENCH_NETWORK=studionet BENCH_JUDGE=0x991Cf014F556D779c0Da83867B0900d88Fe2C4e7 pnpm bench preview --demand "A haiku about rain" --delivery "Rain taps the tin roof / ..."
 pnpm bench escrow --demand "Landing copy under 60 words that mentions the free tier" --amount 50 --expires 24h
 ```
 
@@ -24,14 +24,22 @@ Then follow the [agent skill](skill/bench/SKILL.md): `deliver` → `judge` → `
 
 ## Status (Nov 9, 2026)
 
+**Live:** viewer at **https://bench-ivory.vercel.app** (reads the Studionet sandbox until a Bradbury BenchJudge exists; `/preview` runs real validators).
+
 | Piece | State |
 | --- | --- |
-| `contracts/bench_judge.py` | Lints clean; 22 direct-mode tests pass, including `judge()` against an in-memory Alkahest |
-| `packages/core`, `packages/cli` | Typecheck; 8 unit tests and 11 lifecycle tests pass on **Alkahest's real bytecode** (local chain) |
-| `packages/web` | Builds; reads are server-side with no keys, writes go through the user's wallet |
-| Alkahest on GenLayer Chain (4221) | **Not deployed.** The addresses in Alkahest's `deployment_genlayer_bradbury.json` have no code (`pnpm gate`). Run `pnpm deploy:alkahest` first (see Deploy) |
-| BenchJudge on Bradbury / Studionet | Not deployed yet: needs a funded `GENLAYER_KEY` |
-| EVM write from GenVM on Bradbury | Unproven until `pnpm gate:probe` passes |
+| BenchJudge on **Studionet** | Deployed: `0x991Cf014F556D779c0Da83867B0900d88Fe2C4e7` ([deployments/studionet.json](deployments/studionet.json)) |
+| BenchJudgeB (Plan B) on **Studionet** | Deployed: `0x6E7aB064add7eE67Ba1cEd35BC496293c65515f0`, reading Base Sepolia ([deployments/plan-b-studionet.json](deployments/plan-b-studionet.json)) |
+| Integration tests, real validators (Studionet) | **5/5 pass**: clear pass, clear fail, URL delivery (validators render the hosted page), prompt injection, preview-id reuse |
+| `contracts/*.py` | Lint clean; **30** direct-mode tests (Plan A `judge()` against an in-memory Alkahest, Plan B over a fake JSON-RPC) |
+| `packages/*` | **8** unit + **13** local-chain tests on **Alkahest's real bytecode**: lifecycle, browser calls, CLI, relayer, bridge receiver |
+| `contracts/evm` | BenchUSD + BenchBridgeReceiver; **4** Foundry tests |
+| Alkahest on GenLayer Chain (4221) | **Not deployed**: the published addresses have no code (`pnpm gate`). `pnpm deploy:alkahest` fixes it (tested locally) |
+| Bradbury: BenchJudge, gate probe, e2e | **Blocked on GEN.** The faucet needs a GitHub sign-in (account > 3 months) and 0.01 ETH on Ethereum mainnet at the claiming address |
+| Base Sepolia: funded Plan B run | **Blocked on Base Sepolia ETH** for the buyer, seller and relayer keys |
+| Studionet EVM interop | Not available: an EVM call from GenVM hits the 600 s leader timeout, so the Day 1 probe must run on Bradbury |
+
+To finish: fund the keys in `.env` (addresses are printed in it), then run Deploy steps 2-6 and `BENCH_E2E=1 pnpm e2e`.
 
 ## Deploy (Plan A, all on GenLayer Testnet Bradbury)
 
@@ -42,7 +50,7 @@ Then follow the [agent skill](skill/bench/SKILL.md): `deliver` → `judge` → `
    alkahest-ts's bundled bytecode and regenerates `packages/core/src/alkahest-bradbury.ts`). Then `pnpm build && pnpm gate`.
 3. **Day 1 gate, part 2:** `GENLAYER_KEY=... pnpm gate:probe`. It deploys `contracts/probe/gate_probe.py`, makes one EVM read and
    one `arbitrate` write from GenVM, waits for finality and checks that `ArbitrationMade` landed with `oracle ==` the probe's own address.
-   If it fails, Plan A is blocked: use Plan B (Base Sepolia + relayer or bridge, see ARCHITECTURE.md) and say so in the README and video.
+   If it fails, Plan A is blocked: use Plan B (below) and say so in the README and video.
 4. **BenchJudge:** `GENLAYER_KEY=... pnpm deploy:judge` → `export BENCH_JUDGE=0x...` (also written to `deployments/bradbury.json`).
    For the free `/preview` sandbox, also `BENCH_NETWORK=studionet pnpm deploy:judge`.
 5. **Demo token:** `DEPLOYER_KEY=... BUYER_ADDRESS=0x... pnpm deploy:token` → `export BENCH_USD=0x...`.
@@ -53,6 +61,24 @@ Then follow the [agent skill](skill/bench/SKILL.md): `deliver` → `judge` → `
 **Expiry rule.** Escrows must outlast delivery + GenLayer finality (~30 min) + any appeals: 24 h is the default. Reclaim opens only
 after expiry, so for the recorded fail case use a short expiry (finality + 1–2 h) and say so on screen. An expiry of 0 disables reclaim
 and is refused by the CLI.
+
+## Plan B (Base Sepolia escrows)
+
+Use it if the Day 1 probe fails. Escrows stay on Base Sepolia, where Alkahest and Arkhai's `nla` CLI already work.
+
+```bash
+export BENCH_PLAN=b                                    # core + CLI target Base Sepolia's Alkahest
+RELAYER_KEY=0x... pnpm deploy:judge-b                  # BenchJudgeB; escrows name the relayer address as oracle
+export BENCH_JUDGE=<relayer address> BENCH_JUDGE_B=<BenchJudgeB address>
+bench escrow ... && bench deliver ... && bench judge ...   # same commands; judge calls BenchJudgeB
+RELAYER_KEY=0x... BENCH_JUDGE_B=0x... pnpm relayer         # B1: relays finalized verdicts, once each
+```
+
+- **B1, relayer** (`packages/relayer`): reads only finalized BenchJudgeB state and calls `arbitrate` once per delivery,
+  never again after a restart. The relayer key is trusted: say so in the README and video.
+- **B2, bridge receiver** (`contracts/evm/BenchBridgeReceiver.sol`): deploy it with the bridge endpoint and BenchJudgeB's
+  address, and name it as the oracle (`BENCH_ORACLE=<receiver> pnpm deploy:judge-b`). It accepts deliveries only from the bridge, only
+  for BenchJudgeB, once per fulfillment. Wiring GenLayer's LayerZero-based bridge boilerplate to call `deliver` is still to do.
 
 ## Trust model (Plan A)
 
@@ -75,14 +101,17 @@ and is refused by the CLI.
 
 ```
 contracts/bench_judge.py        BenchJudge Intelligent Contract (GenVM, runner pinned to v0.2.16)
+contracts/bench_judge_b.py      Plan B judge: reads Base Sepolia over JSON-RPC, stores verdicts for relay
 contracts/probe/gate_probe.py   Day 1 gate probe (EVM read + write from GenVM)
-contracts/evm/                  BenchUSD demo token (solc-js build, viem deploy)
+contracts/evm/                  BenchUSD demo token, BenchBridgeReceiver (B2); solc-js build, Foundry tests
 packages/core/                  chains, Alkahest addresses, NLA demand codec, escrow + BenchJudge clients
                                 (index: Node/CLI via alkahest-ts; ./browser: viem-only wallet calls)
 packages/cli/                   `bench` CLI (commander, --json for agents)
-packages/web/                   Next.js case viewer: /, /new, /case/[escrow]/[fulfillment], /preview
+packages/web/                   Next.js case viewer: /, /new, /case/[escrow]/[fulfillment], /preview, /demo
+packages/relayer/               Plan B1 relayer service
 skill/bench/SKILL.md            installable agent skill
-scripts/                        day1-gate.sh, day1-gate-probe.ts, deploy-alkahest.ts, deploy-judge.ts
+scripts/                        day1-gate.sh, day1-gate-probe.ts, deploy-alkahest.ts, deploy-judge.ts, deploy-judge-b.ts
+deployments/                    deployed addresses per network
 tests/direct/                   genlayer-test direct mode (mocked web + LLM + EVM)
 tests/local/                    Alkahest bytecode on a Hardhat node (chain id 4221): core, browser calls, CLI
 tests/integration/              real consensus on Studionet/Bradbury (manual)
@@ -95,10 +124,11 @@ fixtures/cases/                 demo demands and deliveries (pass, fail, URL, pr
 ```bash
 pip install -r requirements.txt
 pnpm lint:contract                       # genvm-lint: BenchJudge + gate probe
-pytest tests/direct -p gltest            # 22 tests, ~1 s after the first SDK download
+pytest tests/direct -p gltest            # 30 tests, ~1 s after the first SDK download
 pnpm -F @bench/core test                 # demand codec (cross-checked against Python eth_abi bytes), limits, expiry
-pnpm test:local                          # 11 tests: escrow → delivery → verdict → collect / reclaim on Alkahest bytecode
-pytest tests/integration -p gltest --network studionet    # manual: real validators
+pnpm test:local                          # 13 tests on Alkahest bytecode: lifecycle, CLI, relayer, bridge receiver
+(cd contracts/evm && forge test)         # BenchBridgeReceiver
+pytest tests/integration -p gltest --network studionet    # real validators; accounts come from .env
 BENCH_E2E=1 pnpm e2e                     # manual: full Bradbury runs (each waits for finality)
 ```
 
@@ -115,6 +145,9 @@ CI runs the lint, the direct tests, typechecks, the unit and local-chain tests a
   from the seller key when present and never lets it block judging.
 - **alkahest-ts can't go in a browser bundle** (it pulls in `@viem/anvil` and ~15 MB of artifacts), so the viewer uses
   `@bench/core/browser`, which makes the same calls with plain viem and is tested against the real bytecode.
+- **Validators must agree on identical errors.** Found live on Studionet: when the leader's read failed, validators voted
+  "disagree" and the transaction went UNDETERMINED. Both contracts now agree on identical failures so bad cases revert cleanly.
+- **Studionet has no EVM interop**: an EVM view from GenVM runs until the 600 s leader timeout.
 - **Receipts carry votes, not model names**, so the jury panel shows validator addresses and votes and never invents model badges.
 
 ## License

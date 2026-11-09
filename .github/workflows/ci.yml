@@ -23,6 +23,7 @@ jobs:
           key: genvm-${{ hashFiles('requirements.txt') }}-v0.2.16
       - run: pip install -r requirements.txt
       - run: genvm-lint check contracts/bench_judge.py
+      - run: genvm-lint check contracts/bench_judge_b.py
       - run: genvm-lint check contracts/probe/gate_probe.py
       - run: pytest tests/direct -p gltest -q
 
@@ -37,8 +38,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm -F @bench/core build && pnpm -F @bench/cli build
-      - run: pnpm -F @bench/core typecheck && pnpm -F @bench/cli typecheck && pnpm -F @bench/web typecheck
+      - run: pnpm -F @bench/core build && pnpm -F @bench/cli build && pnpm -F @bench/relayer build
+      - run: pnpm -F @bench/core typecheck && pnpm -F @bench/cli typecheck && pnpm -F @bench/relayer typecheck && pnpm -F @bench/web typecheck
       - run: pnpm -F @bench/core test
       - name: Local Alkahest lifecycle (real bytecode on a Hardhat node)
         run: pnpm vitest run --config tests/local/vitest.config.ts
@@ -46,3 +47,20 @@ jobs:
         run: pnpm -F @bench/web build
         env:
           NEXT_TELEMETRY_DISABLED: "1"
+
+  solidity:
+    name: solidity (forge test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.7.1
+      - run: forge test
+        working-directory: contracts/evm

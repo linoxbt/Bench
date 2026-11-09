@@ -3,7 +3,7 @@
   "title": "URL delivery: the seller links a hosted page and validators render it",
   "demand": "Publish a public web page titled 'Bench demo' that explains in under 150 words what an escrow is, and includes the phrase 'judged by a GenLayer jury'.",
   "rubric": "Render the linked page. Fulfilled only if the title, the length limit and the exact phrase are all present on the page.",
-  "delivery": "Done: https://bench-demo.example/escrow-explainer (replace with your hosted page before recording)",
-  "expected": null,
-  "note": "Host a static page (e.g. on the Vercel viewer under /demo) and put its URL in the delivery. Keep it unchanged until the verdict is FINALIZED: every validator renders it separately."
+  "delivery": "Done: https://bench-ivory.vercel.app/demo/escrow-explainer",
+  "expected": true,
+  "note": "The page is packages/web/app/demo/escrow-explainer. Keep it unchanged until a verdict is FINALIZED: every validator renders it separately."
 }

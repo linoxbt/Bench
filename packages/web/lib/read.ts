@@ -49,14 +49,16 @@ export async function readCase(escrowUid: Hex, fulfillmentUid: Hex, tx?: Hex): P
   return { escrow, verdict, arbitration, jury };
 }
 
+/** Recent cases on Bradbury, or on the Studionet sandbox when no Bradbury judge is configured yet. */
 export async function recentCases(limit = 8): Promise<{ id: string; c?: Case }[]> {
-  if (!PUBLIC.judge) return [];
-  const gl = genlayer({ network: "bradbury" });
+  const judge = PUBLIC.judge ?? PUBLIC.judgeStudionet;
+  if (!judge) return [];
+  const gl = genlayer({ network: PUBLIC.judge ? "bradbury" : "studionet" });
   const r = await settle(
     (async () => {
-      const total = Number(await gl.client.readContract({ address: PUBLIC.judge!, functionName: "case_count", args: [] }));
-      const ids = await listCases(gl, Math.max(0, total - limit), limit, PUBLIC.judge);
-      return Promise.all(ids.reverse().map(async (id) => ({ id, c: await getCase(gl, id, PUBLIC.judge).catch(() => undefined) })));
+      const total = Number(await gl.client.readContract({ address: judge, functionName: "case_count", args: [] }));
+      const ids = await listCases(gl, Math.max(0, total - limit), limit, judge);
+      return Promise.all(ids.reverse().map(async (id) => ({ id, c: await getCase(gl, id, judge).catch(() => undefined) })));
     })(),
   );
   return "ok" in r ? r.ok : [];

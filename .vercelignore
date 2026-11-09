@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+**/node_modules
+**/.next
+**/dist
+**/out
+**/cache
+contracts/evm/node_modules
+.pytest_cache
+**/__pycache__

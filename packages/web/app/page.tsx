@@ -40,8 +40,18 @@ export default async function Home() {
         ))}
       </section>
 
-      <Card title="Recent cases" right={PUBLIC.judge && <Hash value={PUBLIC.judge} href={`https://explorer-bradbury.genlayer.com/address/${PUBLIC.judge}`} />}>
-        {!PUBLIC.judge ? (
+      <Card
+        title={PUBLIC.judge ? "Recent cases · Bradbury" : "Recent verdicts · Studionet sandbox"}
+        right={
+          (PUBLIC.judge ?? PUBLIC.judgeStudionet) && (
+            <Hash
+              value={(PUBLIC.judge ?? PUBLIC.judgeStudionet)!}
+              href={`${PUBLIC.judge ? "https://explorer-bradbury.genlayer.com" : "https://explorer-studio.genlayer.com"}/address/${PUBLIC.judge ?? PUBLIC.judgeStudionet}`}
+            />
+          )
+        }
+      >
+        {!PUBLIC.judge && !PUBLIC.judgeStudionet ? (
           <Note tone="warn">Set NEXT_PUBLIC_BENCH_JUDGE to the deployed BenchJudge address to list cases.</Note>
         ) : cases.length === 0 ? (
           <Note>No cases yet, or Bradbury is unreachable right now.</Note>

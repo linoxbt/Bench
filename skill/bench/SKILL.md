@@ -52,8 +52,8 @@ Add `--json` to any command for machine-readable output.
 ## Dispute or retry
 
 - Disagree with a verdict before finality: `bench appeal --tx <hash>` (a larger jury re-judges).
-- Try a demand safely first: `bench preview --demand "..." --delivery "..."` (Studionet with
-  `BENCH_NETWORK=studionet`, no funds, no escrow).
+- Try a demand safely first: `BENCH_NETWORK=studionet BENCH_JUDGE=0x991Cf014F556D779c0Da83867B0900d88Fe2C4e7 bench preview --demand "..." --delivery "..."`
+  (the public Studionet sandbox: no funds, no escrow), or https://bench-ivory.vercel.app/preview in a browser.
 - A seller can deliver again against the same open escrow; each delivery is judged once.
 
 ## Trust model (say this when asked)
