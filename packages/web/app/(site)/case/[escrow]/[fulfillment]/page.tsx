@@ -1,9 +1,11 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatUnits, type Hex } from "viem";
 import { ALKAHEST_BRADBURY, evmAddressUrl, genvmTxUrl, LIMITS } from "@bench/core/browser";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { JuryPanel } from "@/components/JuryPanel";
 import { SettleButtons } from "@/components/SettleButtons";
+import { Container } from "@/components/site/blocks";
 import { Card, Hash, Note, Stamp } from "@/components/ui";
 import { PUBLIC } from "@/lib/config";
 import { readCase } from "@/lib/read";
@@ -27,7 +29,23 @@ export default async function CasePage({
   const txHash = tx && UID.test(tx.toLowerCase()) ? (tx.toLowerCase() as Hex) : undefined;
 
   if (!PUBLIC.judge) {
-    return <Note tone="warn">Set NEXT_PUBLIC_BENCH_JUDGE to the deployed BenchJudge address.</Note>;
+    return (
+      <Container className="pb-24">
+        <div className="pb-10 pt-12 sm:pt-16">
+          <p className="eyebrow">Case</p>
+          <h1 className="display mt-3 text-[2.4rem] sm:text-[3.2rem]">Escrow cases open on Bradbury.</h1>
+          <p className="mt-4 max-w-2xl text-muted">
+            Cases with real escrows are judged by BenchJudge on Testnet Bradbury, which this site isn&apos;t connected to yet. Every past verdict is in the
+            case explorer, and you can ask the live Studionet jury right now.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link className="pill pill-primary" href="/preview">Try the jury</Link>
+            <Link className="pill pill-secondary" href="/cases">Case explorer</Link>
+            <Link className="pill pill-secondary" href="/status">Deployment status</Link>
+          </div>
+        </div>
+      </Container>
+    );
   }
 
   const view = await readCase(e, f, txHash);
@@ -41,17 +59,17 @@ export default async function CasePage({
   const oracleOk = escrowInfo ? escrowInfo.oracle.toLowerCase() === PUBLIC.judge.toLowerCase() : true;
 
   return (
-    <div className="space-y-6">
+    <Container className="space-y-6 pb-24">
       <AutoRefresh active={!settled} />
-      <header className="flex flex-wrap items-end justify-between gap-4">
+      <header className="flex flex-col gap-4 pb-4 pt-12 sm:flex-row sm:items-end sm:justify-between sm:pt-16">
         <div>
-          <p className="label">case</p>
-          <h1 className="text-xl font-bold">
-            <Hash value={f} chars={14} />
+          <p className="eyebrow">Case</p>
+          <h1 className="display mt-3 break-all text-[1.8rem] sm:text-[2.6rem]">
+            {f.slice(0, 10)}…{f.slice(-6)}
           </h1>
         </div>
-        <p className="text-xs text-dim">
-          judge <Hash value={PUBLIC.judge} href={`https://explorer-bradbury.genlayer.com/address/${PUBLIC.judge}`} />
+        <p className="text-sm text-muted">
+          judged by <Hash value={PUBLIC.judge} href={`https://explorer-bradbury.genlayer.com/address/${PUBLIC.judge}`} />
         </p>
       </header>
 
@@ -60,25 +78,25 @@ export default async function CasePage({
           {escrowInfo ? (
             <dl className="space-y-2 text-sm">
               <div>
-                <dt className="label">amount</dt>
-                <dd className="text-2xl font-bold text-teal">{formatUnits(escrowInfo.amount, 18)}</dd>
-                <dd className="text-xs text-dim">
+                <dt className="eyebrow">amount</dt>
+                <dd className="text-3xl font-medium tracking-tight text-ink">{formatUnits(escrowInfo.amount, 18)}</dd>
+                <dd className="text-xs text-muted">
                   token <Hash value={escrowInfo.token} href={evmAddressUrl(escrowInfo.token)} />
                 </dd>
               </div>
               <div>
-                <dt className="label">escrow</dt>
+                <dt className="eyebrow">escrow</dt>
                 <dd>
                   <Hash value={e} />
                 </dd>
               </div>
               <div>
-                <dt className="label">expires</dt>
+                <dt className="eyebrow">expires</dt>
                 <dd>{new Date(Number(escrowInfo.expirationTime) * 1000).toUTCString()}</dd>
               </div>
               <div>
-                <dt className="label">state</dt>
-                <dd className={settled ? "text-dim" : "text-teal"}>{settled ? "settled (collected or reclaimed)" : expired ? "expired: buyer may reclaim" : "locked"}</dd>
+                <dt className="eyebrow">state</dt>
+                <dd className={settled ? "text-muted" : "text-blue"}>{settled ? "settled (collected or reclaimed)" : expired ? "expired: buyer may reclaim" : "locked"}</dd>
               </div>
               {!oracleOk && <Note tone="fail">This escrow names a different oracle ({escrowInfo.oracle}); BenchJudge will refuse it.</Note>}
             </dl>
@@ -91,17 +109,17 @@ export default async function CasePage({
           {verdict ? (
             <div className="space-y-4 text-sm">
               <div>
-                <p className="label">demand</p>
+                <p className="eyebrow">demand</p>
                 <p className="mt-1 whitespace-pre-wrap">{verdict.demand}</p>
               </div>
               <div>
-                <p className="label">rubric (written by the buyer)</p>
-                <p className="mt-1 whitespace-pre-wrap text-dim">{verdict.rubric || "Fulfilled only if every explicit requirement in the demand is met."}</p>
+                <p className="eyebrow">rubric (written by the buyer)</p>
+                <p className="mt-1 whitespace-pre-wrap text-muted">{verdict.rubric || "Fulfilled only if every explicit requirement in the demand is met."}</p>
               </div>
               <div>
-                <p className="label">delivery</p>
-                <pre className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap border border-line bg-ink p-3 text-xs">{verdict.delivery}</pre>
-                {verdict.delivery.length >= 2000 && <p className="mt-1 text-xs text-dim">Showing the first 2,000 stored characters; the jury saw up to {LIMITS.deliveryChars.toLocaleString()}.</p>}
+                <p className="eyebrow">delivery</p>
+                <pre className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap rounded-xl bg-wash p-4 font-mono text-xs leading-relaxed text-ink">{verdict.delivery}</pre>
+                {verdict.delivery.length >= 2000 && <p className="mt-1 text-xs text-muted">Showing the first 2,000 stored characters; the jury saw up to {LIMITS.deliveryChars.toLocaleString()}.</p>}
               </div>
             </div>
           ) : (
@@ -150,12 +168,12 @@ export default async function CasePage({
               canCollect={Boolean(landed?.decision) && !settled}
               canReclaim={!settled && expired}
             />
-            <p className="text-xs text-dim">
+            <p className="text-xs text-muted">
               Collect works once the verdict is true. Reclaim opens after expiry if the escrow is still locked, so sellers should collect promptly.
             </p>
           </div>
         </Card>
       </div>
-    </div>
+    </Container>
   );
 }

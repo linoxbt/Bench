@@ -1,116 +1,195 @@
 @import "tailwindcss";
 
 @theme {
-  --color-ink: #07090a;
-  --color-panel: #0d1112;
-  --color-line: #1d2527;
-  --color-dim: #7d8a8c;
-  --color-text: #d7dedf;
-  --color-teal: #2dd4bf;
-  --color-pass: #2dd4bf;
-  --color-fail: #f87171;
-  --color-warn: #fbbf24;
-  --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --color-ink: #0a0b0d;
+  --color-body: #171717;
+  --color-muted: #5b616e;
+  --color-faint: #8a919e;
+  --color-line: #e8eaed;
+  --color-wash: #f5f6f7;
+  --color-wash-2: #eef0f3;
+  --color-blue: #1f3cff;
+  --color-blue-ink: #1530e0;
+  --color-blue-wash: #eef1ff;
+  --color-green: #66c800;
+  --color-lilac: #b8a5ff;
+  --color-pass: #0e8a4f;
+  --color-fail: #d92d20;
+  --color-warn: #b54708;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-jbmono), ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-html,
+html {
+  scroll-behavior: smooth;
+}
 body {
-  background: var(--color-ink);
-  color: var(--color-text);
+  background: #fff;
+  color: var(--color-body);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Component classes live in a layer so Tailwind utilities (hidden, sm:inline-flex, …) can override them. */
+@layer components {
+/* Display type: big, tight, confident */
+.display {
+  font-weight: 500;
+  letter-spacing: -0.045em;
+  line-height: 0.98;
+  color: var(--color-ink);
+}
+.headline {
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: var(--color-ink);
+}
+.eyebrow {
   font-family: var(--font-mono);
-}
-
-::selection {
-  background: color-mix(in srgb, var(--color-teal) 35%, transparent);
-}
-
-/* Corner-bracket card */
-.bracket {
-  position: relative;
-  background: var(--color-panel);
-  border: 1px solid var(--color-line);
-}
-.bracket::before,
-.bracket::after {
-  content: "";
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  border-color: var(--color-teal);
-  border-style: solid;
-  pointer-events: none;
-}
-.bracket::before {
-  top: -1px;
-  left: -1px;
-  border-width: 2px 0 0 2px;
-}
-.bracket::after {
-  bottom: -1px;
-  right: -1px;
-  border-width: 0 2px 2px 0;
-}
-
-.label {
-  font-size: 0.7rem;
-  letter-spacing: 0.12em;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-dim);
+  color: var(--color-muted);
 }
 
-input,
-textarea,
-select {
-  background: var(--color-ink);
-  border: 1px solid var(--color-line);
-  color: var(--color-text);
-  padding: 0.6rem 0.75rem;
-  width: 100%;
-  font-family: var(--font-mono);
-  font-size: 0.9rem;
-  outline: none;
-}
-input:focus,
-textarea:focus {
-  border-color: var(--color-teal);
-}
-
-.btn {
+/* Pills */
+.pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  border: 1px solid var(--color-teal);
-  color: var(--color-teal);
-  padding: 0.55rem 1rem;
-  font-size: 0.85rem;
-  letter-spacing: 0.04em;
-  transition: background 120ms;
+  justify-content: center;
+  gap: 0.6rem;
+  height: 3rem;
+  padding: 0 1.4rem;
+  border-radius: 9999px;
+  font-size: 1rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 150ms, border-color 150ms, color 150ms, transform 150ms;
 }
-.btn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-teal) 14%, transparent);
+.pill:active {
+  transform: scale(0.98);
 }
-.btn:disabled {
+.pill-sm {
+  height: 2.25rem;
+  padding: 0 0.95rem;
+  font-size: 0.9rem;
+}
+.pill-primary {
+  background: var(--color-blue);
+  color: #fff;
+}
+.pill-primary:hover:not(:disabled) {
+  background: var(--color-blue-ink);
+}
+.pill-secondary {
+  background: #fff;
+  color: var(--color-ink);
+  border: 1px solid var(--color-line);
+}
+.pill-secondary:hover:not(:disabled) {
+  border-color: #c9cdd4;
+  background: var(--color-wash);
+}
+.pill-ghost {
+  background: var(--color-wash);
+  color: var(--color-ink);
+}
+.pill-ghost:hover:not(:disabled) {
+  background: var(--color-wash-2);
+}
+.pill-invert {
+  background: #fff;
+  color: var(--color-ink);
+}
+.pill-invert:hover {
+  background: #eef1ff;
+}
+.pill-onblue {
+  background: rgb(255 255 255 / 0.16);
+  color: #fff;
+}
+.pill-onblue:hover {
+  background: rgb(255 255 255 / 0.26);
+}
+.pill:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
-.btn-solid {
-  background: var(--color-teal);
-  color: var(--color-ink);
+
+/* Cards */
+.card {
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 1rem;
 }
-.btn-solid:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-teal) 85%, white);
+.card-hover {
+  transition: border-color 150ms, box-shadow 150ms, transform 150ms;
+}
+.card-hover:hover {
+  border-color: #d5d9df;
+  box-shadow: 0 8px 30px -12px rgb(10 11 13 / 0.12);
 }
 
-@keyframes flip-in {
+/* Forms */
+.field {
+  width: 100%;
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  font-size: 0.95rem;
+  color: var(--color-ink);
+  outline: none;
+  transition: border-color 150ms, box-shadow 150ms;
+}
+.field:focus {
+  border-color: var(--color-blue);
+  box-shadow: 0 0 0 3px rgb(31 60 255 / 0.12);
+}
+.label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-ink);
+}
+
+/* Code */
+.code {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.7;
+}
+}
+
+@keyframes rise {
   from {
-    transform: rotateX(90deg);
     opacity: 0;
+    transform: translateY(10px);
   }
   to {
-    transform: rotateX(0);
     opacity: 1;
+    transform: none;
   }
 }
-.flip-in {
-  animation: flip-in 420ms ease-out both;
+.rise {
+  animation: rise 500ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.menu-in {
+  animation: menu-in 220ms ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .menu-in {
+    animation: none;
+  }
 }

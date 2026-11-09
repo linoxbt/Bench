@@ -39,10 +39,10 @@ export function SettleButtons({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-3">
-        <button className="btn btn-solid" disabled={!canCollect || busy} onClick={() => run("collect")}>
+        <button className="pill pill-primary pill-sm" disabled={!canCollect || busy} onClick={() => run("collect")}>
           Collect (seller)
         </button>
-        <button className="btn" disabled={!canReclaim || busy} onClick={() => run("reclaim")}>
+        <button className="pill pill-secondary pill-sm" disabled={!canReclaim || busy} onClick={() => run("reclaim")}>
           Reclaim (buyer)
         </button>
       </div>

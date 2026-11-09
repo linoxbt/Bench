@@ -63,3 +63,12 @@ export async function recentCases(limit = 8): Promise<{ id: string; c?: Case }[]
   );
   return "ok" in r ? r.ok : [];
 }
+
+/** Live numbers for the landing page; undefined when the network can't be reached. */
+export async function liveStats(): Promise<{ cases?: number; network: "bradbury" | "studionet" }> {
+  const judge = PUBLIC.judge ?? PUBLIC.judgeStudionet;
+  const network = PUBLIC.judge ? "bradbury" : "studionet";
+  if (!judge) return { network };
+  const r = await settle(genlayer({ network }).client.readContract({ address: judge, functionName: "case_count", args: [] }));
+  return { cases: "ok" in r ? Number(r.ok) : undefined, network };
+}

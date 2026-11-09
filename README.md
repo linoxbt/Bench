@@ -24,7 +24,9 @@ Then follow the [agent skill](skill/bench/SKILL.md): `deliver` → `judge` → `
 
 ## Status (Nov 9, 2026)
 
-**Live:** viewer at **https://bench-ivory.vercel.app** (reads the Studionet sandbox until a Bradbury BenchJudge exists; `/preview` runs real validators).
+**Live:** **https://bench-ivory.vercel.app**: landing page, How it works, Use cases, Trust model, Architecture, Developers, Case explorer, Status and
+FAQ, plus the app pages (Preview a verdict, Lock an escrow, Open a case). It reads the Studionet sandbox until a Bradbury BenchJudge exists, and
+`/preview` runs real validators.
 
 | Piece | State |
 | --- | --- |
@@ -107,7 +109,7 @@ contracts/evm/                  BenchUSD demo token, BenchBridgeReceiver (B2); s
 packages/core/                  chains, Alkahest addresses, NLA demand codec, escrow + BenchJudge clients
                                 (index: Node/CLI via alkahest-ts; ./browser: viem-only wallet calls)
 packages/cli/                   `bench` CLI (commander, --json for agents)
-packages/web/                   Next.js case viewer: /, /new, /case/[escrow]/[fulfillment], /preview, /demo
+packages/web/                   Next.js site + app: every page is its own route under app/(site); /demo has no site chrome
 packages/relayer/               Plan B1 relayer service
 skill/bench/SKILL.md            installable agent skill
 scripts/                        day1-gate.sh, day1-gate-probe.ts, deploy-alkahest.ts, deploy-judge.ts, deploy-judge-b.ts
