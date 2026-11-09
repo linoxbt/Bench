@@ -7,6 +7,9 @@ import { Command, Option } from "commander";
 import { formatUnits, parseAbi, parseUnits, type Address, type Hex } from "viem";
 import {
   BENCH_JUDGE,
+  BENCH_JUDGE_B,
+  BENCH_PLAN,
+  escrowTxUrl,
   BENCH_USD,
   appeal,
   collect,
@@ -102,7 +105,7 @@ program
     const wallet = walletFromKey(key("BENCH_BUYER_KEY"));
     const { escrowUid, hash } = await createEscrow(wallet, token, amount, { demand: o.demand, rubric: o.rubric }, expiration);
     print(
-      `Escrow created: ${formatUnits(amount, decimals)} ${symbol} locked.\n  escrowUid  ${escrowUid}\n  expires    ${new Date(Number(expiration) * 1000).toISOString()}\n  tx         ${evmTxUrl(hash)}\nShare the escrowUid with the seller.`,
+      `Escrow created: ${formatUnits(amount, decimals)} ${symbol} locked.\n  escrowUid  ${escrowUid}\n  expires    ${new Date(Number(expiration) * 1000).toISOString()}\n  tx         ${escrowTxUrl(hash)}\nShare the escrowUid with the seller.`,
       { escrowUid, hash, amount, token, expiration },
     );
   });
@@ -125,7 +128,7 @@ program
     for (const w of deliveryWarnings(delivery)) console.error(`warning: ${w}`);
     const d = await fulfill(wallet, uid(o.escrow), delivery);
     print(
-      `Delivered.\n  fulfillmentUid  ${d.fulfillmentUid}\n  commit tx       ${evmTxUrl(d.commitHash)}\n  reveal tx       ${evmTxUrl(d.revealHash)}\nNext: bench judge --escrow ${o.escrow} --fulfillment ${d.fulfillmentUid}`,
+      `Delivered.\n  fulfillmentUid  ${d.fulfillmentUid}\n  commit tx       ${escrowTxUrl(d.commitHash)}\n  reveal tx       ${escrowTxUrl(d.revealHash)}\nNext: bench judge --escrow ${o.escrow} --fulfillment ${d.fulfillmentUid}`,
       { ...d },
     );
   });
@@ -137,7 +140,7 @@ program
   .requiredOption("--fulfillment <uid>")
   .option("--no-request", "skip Alkahest's optional requestArbitration event")
   .action(async (o) => {
-    requireDeployed("BenchJudge", BENCH_JUDGE);
+    if (BENCH_PLAN !== "b") requireDeployed("BenchJudge", BENCH_JUDGE);
     const e = uid(o.escrow);
     const f = uid(o.fulfillment);
     let requested: { hash?: Hex; skipped?: string } = { skipped: "disabled" };
@@ -145,11 +148,13 @@ program
       // Only the fulfillment's recipient may request; failures never block judging.
       requested = await requestArbitration(walletFromKey(key("BENCH_SELLER_KEY")), e, f);
     }
-    const gl = genlayer({ privateKey: genlayerKey("BENCH_SELLER_KEY"), network: "bradbury" });
-    const { hash, accepted } = await openCase(gl, e, f);
-    const c = await getCase(gl, f);
+    const planB = BENCH_PLAN === "b";
+    const judgeAddr = planB ? requireDeployed("BenchJudgeB", BENCH_JUDGE_B) : BENCH_JUDGE;
+    const gl = genlayer({ privateKey: genlayerKey("BENCH_SELLER_KEY"), network: planB ? network() : "bradbury" });
+    const { hash, accepted } = await openCase(gl, e, f, judgeAddr);
+    const c = await getCase(gl, f, judgeAddr);
     print(
-      `Case opened and ACCEPTED (appeal window is open; not final yet).\n  GenLayer tx  ${genvmTxUrl(hash)}\n  verdict     ${c ? (c.fulfilled ? "FULFILLED" : "NOT FULFILLED") : "pending"}${c?.reason ? ` - ${c.reason}` : ""}\n  requestArbitration  ${requested.hash ? evmTxUrl(requested.hash) : `skipped (${requested.skipped})`}\nThe verdict reaches Alkahest only after FINALIZED: bench status --escrow ${e} --fulfillment ${f} --tx ${hash}`,
+      `Case opened and ACCEPTED (appeal window is open; not final yet).\n  GenLayer tx  ${genvmTxUrl(hash, planB ? network() : "bradbury")}\n  verdict     ${c ? (c.fulfilled ? "FULFILLED" : "NOT FULFILLED") : "pending"}${c?.reason ? ` - ${c.reason}` : ""}\n  requestArbitration  ${requested.hash ? escrowTxUrl(requested.hash) : `skipped (${requested.skipped})`}\n${planB ? "The relayer (or bridge) delivers it to Alkahest after FINALIZED:" : "The verdict reaches Alkahest only after FINALIZED:"} bench status --escrow ${e} --fulfillment ${f} --tx ${hash}`,
       { hash, status: accepted.statusName, case: c, requestArbitration: requested },
     );
   });
@@ -208,7 +213,7 @@ program
     if (!landed) throw new Error("No verdict on Alkahest yet. Wait for GenLayer FINALIZED (bench status --wait).");
     if (!landed.decision) throw new Error("The jury decided NOT FULFILLED; this escrow can't be collected with this delivery.");
     const hash = await collect(wallet, uid(o.escrow), uid(o.fulfillment));
-    print(`Collected.\n  tx ${evmTxUrl(hash)}`, { hash });
+    print(`Collected.\n  tx ${escrowTxUrl(hash)}`, { hash });
   });
 
 program
@@ -224,7 +229,7 @@ program
       throw new Error(`Not expired yet: reclaim opens at ${new Date(Number(escrow.expirationTime) * 1000).toISOString()}.`);
     }
     const hash = await reclaim(wallet, uid(o.escrow));
-    print(`Reclaimed.\n  tx ${evmTxUrl(hash)}`, { hash });
+    print(`Reclaimed.\n  tx ${escrowTxUrl(hash)}`, { hash });
   });
 
 program
@@ -235,13 +240,13 @@ program
   .option("--rubric <text>", "", "")
   .option("--id <caseId>", "preview id (stored as preview:<id>)")
   .action(async (o) => {
-    requireDeployed("BenchJudge", BENCH_JUDGE);
+    const previewJudge = BENCH_PLAN === "b" ? requireDeployed("BenchJudgeB", BENCH_JUDGE_B) : requireDeployed("BenchJudge", BENCH_JUDGE);
     for (const w of deliveryWarnings(o.delivery)) console.error(`warning: ${w}`);
     const net = network();
     const gl = genlayer({ privateKey: key("GENLAYER_KEY"), network: net });
     const id: string = o.id ?? `cli-${Date.now().toString(36)}`;
-    const { hash, caseKey } = await preview(gl, id, o.demand, o.delivery, o.rubric);
-    const c = await getCase(gl, caseKey);
+    const { hash, caseKey } = await preview(gl, id, o.demand, o.delivery, o.rubric, previewJudge);
+    const c = await getCase(gl, caseKey, previewJudge);
     print(
       `Preview ${caseKey}: ${c?.fulfilled ? "FULFILLED" : "NOT FULFILLED"} - ${c?.reason}\n  tx ${genvmTxUrl(hash, net)}`,
       { hash, caseKey, case: c },

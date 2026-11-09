@@ -1,0 +1,15 @@
+{
+  "network": "studionet",
+  "benchJudgeB": "0x6E7aB064add7eE67Ba1cEd35BC496293c65515f0",
+  "oracle": "0x64b73431E756EA017b9b6cDf9FB8C44883142c1E",
+  "sourceRpc": "https://sepolia.base.org",
+  "deployTx": "0x5c2798aef383385b22ac3439152aef05f5f0400c2e8dd9dc924ee9f2eba71315",
+  "alkahest": {
+    "eas": "0x4200000000000000000000000000000000000021",
+    "erc20EscrowObligation": "0x235E4D9d329460fEE53A45cC6b14109bC74818AA",
+    "commitRevealObligation": "0x2834FFf408D729d08058E24002B19B45B1Ec06cd",
+    "stringObligation": "0xB1e14fdeBB8192Fb0bEe918075CcD350d0Cb47a7",
+    "trustedOracleArbiter": "0xCA13C55a1863fF8F6CEF9166C30bb4563EB7Dca3"
+  },
+  "deployedAt": "2026-11-09T19:21:21.155Z"
+}

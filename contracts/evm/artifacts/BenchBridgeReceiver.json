@@ -1,0 +1,151 @@
+{
+  "contractName": "BenchBridgeReceiver",
+  "compiler": "0.8.38+commit.1835d247.Emscripten.clang",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "contract ITrustedOracleArbiter",
+          "name": "_arbiter",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_bridge",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_sourceJudge",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "fulfillmentUid",
+          "type": "bytes32"
+        }
+      ],
+      "name": "AlreadyDelivered",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "caller",
+          "type": "address"
+        }
+      ],
+      "name": "NotBridge",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "got",
+          "type": "address"
+        }
+      ],
+      "name": "WrongSource",
+      "type": "error"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "fulfillmentUid",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "bool",
+          "name": "decision",
+          "type": "bool"
+        }
+      ],
+      "name": "VerdictDelivered",
+      "type": "event"
+    },
+    {
+      "inputs": [],
+      "name": "arbiter",
+      "outputs": [
+        {
+          "internalType": "contract ITrustedOracleArbiter",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "bridge",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes",
+          "name": "message",
+          "type": "bytes"
+        }
+      ],
+      "name": "deliver",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "delivered",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "sourceJudge",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x60e060405234801561000f575f5ffd5b506040516105fd3803806105fd83398101604081905261002e91610062565b6001600160a01b0392831660805290821660a0521660c0526100ac565b6001600160a01b038116811461005f575f5ffd5b50565b5f5f5f60608486031215610074575f5ffd5b835161007f8161004b565b60208501519093506100908161004b565b60408501519092506100a18161004b565b809150509250925092565b60805160a05160c0516105146100e95f395f81816073015261019c01525f818160e9015261013d01525f8181610110015261025801526105145ff3fe608060405234801561000f575f5ffd5b5060043610610055575f3560e01c806322133eaf14610059578063a7d58ce71461006e578063e495f1d4146100b2578063e78cea92146100e4578063fe25e00a1461010b575b5f5ffd5b61006c610067366004610302565b610132565b005b6100957f000000000000000000000000000000000000000000000000000000000000000081565b6040516001600160a01b0390911681526020015b60405180910390f35b6100d46100c0366004610370565b5f6020819052908152604090205460ff1681565b60405190151581526020016100a9565b6100957f000000000000000000000000000000000000000000000000000000000000000081565b6100957f000000000000000000000000000000000000000000000000000000000000000081565b336001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000161461018257604051637c8da0cf60e11b81523360048201526024015b60405180910390fd5b5f808080610192858701876103af565b93509350935093507f00000000000000000000000000000000000000000000000000000000000000006001600160a01b0316846001600160a01b0316146101f75760405163d30d9d9f60e01b81526001600160a01b0385166004820152602401610179565b5f8381526020819052604090205460ff1615610229576040516356bc34a160e01b815260048101849052602401610179565b5f8381526020819052604090819020805460ff1916600117905551630fcb0c3960e41b81526001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000169063fcb0c3909061029190869086908690600401610499565b5f604051808303815f87803b1580156102a8575f5ffd5b505af11580156102ba573d5f5f3e3d5ffd5b50505050827ffe8504cb1ef80a74def5f2228e84b90fcca45a9523c233e7910fe88e10fc557c826040516102f2911515815260200190565b60405180910390a2505050505050565b5f5f60208385031215610313575f5ffd5b823567ffffffffffffffff811115610329575f5ffd5b8301601f81018513610339575f5ffd5b803567ffffffffffffffff81111561034f575f5ffd5b856020828401011115610360575f5ffd5b6020919091019590945092505050565b5f60208284031215610380575f5ffd5b5035919050565b634e487b7160e01b5f52604160045260245ffd5b803580151581146103aa575f5ffd5b919050565b5f5f5f5f608085870312156103c2575f5ffd5b84356001600160a01b03811681146103d8575f5ffd5b935060208501359250604085013567ffffffffffffffff8111156103fa575f5ffd5b8501601f8101871361040a575f5ffd5b803567ffffffffffffffff81111561042457610424610387565b604051601f8201601f19908116603f0116810167ffffffffffffffff8111828210171561045357610453610387565b60405281815282820160200189101561046a575f5ffd5b816020840160208301375f6020838301015280945050505061048e6060860161039b565b905092959194509250565b838152606060208201525f83518060608401528060208601608085015e5f608082850101526080601f19601f830116840101915050821515604083015294935050505056fea2646970667358221220a3ab50107432f0ba06cd116c9bc07bca34a32a2cd070c9acbfdebe9c6f94803c64736f6c63430008260033"
+}

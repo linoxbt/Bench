@@ -76,6 +76,7 @@ def _view(contract):
     return proxy
 
 
+# ---- shared with bench_judge.py: begin ----
 # Attestation tuple indexes
 ATT_REVOCATION_TIME = 4
 ATT_REF_UID = 5
@@ -183,6 +184,7 @@ Respond with JSON only: {{"fulfilled": true|false, "reason": "<one sentence nami
         return mine["fulfilled"] == leaders_res.calldata["fulfilled"]
 
     return gl.vm.run_nondet_unsafe(leader_fn, validator_fn)
+# ---- shared with bench_judge.py: end ----
 
 
 class BenchJudge(gl.Contract):

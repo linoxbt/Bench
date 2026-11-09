@@ -1,10 +1,16 @@
-# genlayer-test networks. Accounts come from the environment, never from this file.
+# genlayer-test networks. Keys come from .env (gitignored), never from this file.
+environment: .env
 networks:
   default: studionet
   studionet:
-    url: "https://studio.genlayer.com/api"
-    leader_only: false
+    accounts: ["${GENLAYER_KEY}", "${BENCH_SELLER_KEY}"]
+    from: "${GENLAYER_KEY}"
+    default_wait_interval: 3000
+    default_wait_retries: 100
   testnet_bradbury:
-    url: "https://rpc-bradbury.genlayer.com"
+    accounts: ["${GENLAYER_KEY}"]
+    from: "${GENLAYER_KEY}"
+    default_wait_interval: 10000
+    default_wait_retries: 360
 paths:
   contracts: "contracts"

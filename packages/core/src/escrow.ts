@@ -12,8 +12,8 @@ import {
   type WalletClient,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { genlayerChain } from "./chains.js";
-import { ALKAHEST_BRADBURY, BENCH_JUDGE } from "./addresses.js";
+import { BENCH_PLAN, escrowChain } from "./chains.js";
+import { ALKAHEST_BASE_SEPOLIA, ALKAHEST_BRADBURY, BENCH_JUDGE } from "./addresses.js";
 import { decodeOracleDemand, encodeBenchDemand, type BenchDemand } from "./demand.js";
 
 export type BenchWallet = WalletClient<Transport, Chain, Account>;
@@ -30,12 +30,14 @@ export type BenchConfig = {
 };
 
 /**
- * Defaults to Testnet Bradbury. BENCH_ALKAHEST_ADDRESSES (a JSON object of contract addresses) overrides
+ * Defaults to Testnet Bradbury (Plan A) or Base Sepolia (BENCH_PLAN=b). In Plan B, BENCH_JUDGE is the oracle the
+ * escrows name: the relayer key's address (B1) or the BenchBridgeReceiver (B2). BENCH_ALKAHEST_ADDRESSES (a JSON object of contract addresses) overrides
  * individual contracts, e.g. for a local Alkahest deployment or a redeploy after a failed Day 1 gate.
  */
 export const defaultConfig = (): BenchConfig => {
   const override = typeof process !== "undefined" ? process.env?.BENCH_ALKAHEST_ADDRESSES : undefined;
-  const addresses = override ? { ...ALKAHEST_BRADBURY, ...(JSON.parse(override) as Partial<ChainAddresses>) } : ALKAHEST_BRADBURY;
+  const base = BENCH_PLAN === "b" ? ALKAHEST_BASE_SEPOLIA : ALKAHEST_BRADBURY;
+  const addresses = override ? { ...base, ...(JSON.parse(override) as Partial<ChainAddresses>) } : base;
   return { addresses, judge: BENCH_JUDGE };
 };
 
@@ -47,7 +49,7 @@ export const DELIVERY_SCHEMA = keccak256(toHex("{item:string}"));
 
 /** A wallet on GenLayer Chain from a private key (CLI, scripts, tests). Never log the key. */
 export function walletFromKey(privateKey: Hex, rpcUrl?: string): BenchWallet {
-  return createWalletClient({ account: privateKeyToAccount(privateKey), chain: genlayerChain, transport: http(rpcUrl) });
+  return createWalletClient({ account: privateKeyToAccount(privateKey), chain: escrowChain, transport: http(rpcUrl) });
 }
 
 /**

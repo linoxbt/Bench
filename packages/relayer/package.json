@@ -1,0 +1,24 @@
+{
+  "name": "@bench/relayer",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "Plan B1: relays finalized BenchJudgeB verdicts to Alkahest's TrustedOracleArbiter on Base Sepolia",
+  "main": "./dist/relayer.js",
+  "bin": { "bench-relayer": "./dist/main.js" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@bench/core": "workspace:*",
+    "genlayer-js": "1.1.8",
+    "viem": "2.57.17"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "@types/node": "22.20.5"
+  }
+}

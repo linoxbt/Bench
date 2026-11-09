@@ -22,7 +22,9 @@
     "deploy:token": "pnpm -F @bench/evm build && pnpm -F @bench/evm deploy:token",
     "test:local": "pnpm -F @bench/core build && pnpm -F @bench/cli build && vitest run --config tests/local/vitest.config.ts",
     "bench": "node packages/cli/dist/index.js",
-    "deploy:alkahest": "tsx scripts/deploy-alkahest.ts"
+    "deploy:alkahest": "tsx scripts/deploy-alkahest.ts",
+    "deploy:judge-b": "tsx scripts/deploy-judge-b.ts",
+    "relayer": "pnpm -F @bench/relayer build && node packages/relayer/dist/main.js"
   },
   "devDependencies": {
     "@types/node": "22.20.5",

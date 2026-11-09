@@ -36,6 +36,14 @@ function asCase(raw: unknown): Case | undefined {
   return raw as Case;
 }
 
+/** The contract's revert message, if the accepted transaction rolled back (e.g. "[EXPECTED] already decided"). */
+export function executionError(tx: GenLayerTransaction): string | undefined {
+  const lr = tx.consensus_data?.leader_receipt?.[0] as { result?: { status?: string; payload?: unknown } } | undefined;
+  const r = lr?.result;
+  if (r && r.status && r.status !== "return") return typeof r.payload === "string" ? r.payload : r.status;
+  return undefined;
+}
+
 /** Open a case. Resolves when ACCEPTED; arbitrate() lands on Alkahest only after FINALIZED. */
 export async function openCase(gl: GenLayer, escrowUid: Hex, fulfillmentUid: Hex, judge: Address = BENCH_JUDGE) {
   if (!gl.account) throw new Error("openCase needs a private key (GENLAYER_KEY)");
@@ -52,6 +60,8 @@ export async function openCase(gl: GenLayer, escrowUid: Hex, fulfillmentUid: Hex
     retries: 200,
     interval: 5000,
   });
+  const err = executionError(accepted);
+  if (err) throw new Error(`BenchJudge refused the case: ${err} (tx ${hash})`);
   return { hash, accepted };
 }
 
@@ -71,6 +81,8 @@ export async function preview(gl: GenLayer, caseId: string, demand: string, deli
     retries: 200,
     interval: 3000,
   });
+  const err = executionError(receipt);
+  if (err) throw new Error(`preview failed: ${err} (tx ${hash})`);
   return { hash, receipt, caseKey: `preview:${caseId}` };
 }
 
