@@ -1,0 +1,29 @@
+{
+  "name": "bench",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Arkhai natural-language escrows judged by a GenLayer validator jury",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "lint:contract": "genvm-lint check contracts/bench_judge.py",
+    "test:contract": "pytest tests/direct -p gltest",
+    "e2e": "vitest run --config tests/e2e/vitest.config.ts"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "alkahest-ts": "1.1.2",
+    "genlayer-js": "1.1.8",
+    "hardhat": "2.29.1",
+    "typescript": "5.9.3",
+    "viem": "2.57.17",
+    "vitest": "5.1.0"
+  }
+}
