@@ -80,8 +80,9 @@ export async function benchJudgeArbitrates(cfg: BenchConfig, fulfillmentUid: Hex
     to: cfg.addresses.trustedOracleArbiter,
     data: encodeFunctionData({ abi: ARBITER, functionName: "arbitrate", args: [fulfillmentUid, encodeNlaDemand(demand), verdict] }),
   });
-  await testClient.waitForTransactionReceipt({ hash });
+  const receipt = await testClient.waitForTransactionReceipt({ hash });
   await testClient.stopImpersonatingAccount({ address: BENCH_JUDGE });
+  if (receipt.status !== "success") throw new Error(`impersonated arbitrate reverted (${hash})`);
 }
 
 export async function now(): Promise<bigint> {

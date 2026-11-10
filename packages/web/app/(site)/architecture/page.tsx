@@ -24,8 +24,8 @@ export default function Architecture() {
       </PageHero>
 
       <Container className="pb-20">
-        <div className="card overflow-hidden">
-          <table className="w-full text-left text-[0.95rem]">
+        <div className="card overflow-x-auto">
+          <table className="w-full min-w-[36rem] text-left text-[0.95rem]">
             <thead className="bg-wash text-sm text-muted">
               <tr>
                 <th className="px-6 py-4 font-medium">Owned by</th>

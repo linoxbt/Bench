@@ -2,8 +2,8 @@
  * Wallet-side Alkahest calls with plain viem, for the browser: alkahest-ts bundles @viem/anvil (Node-only)
  * and ~15 MB of artifacts. ABIs match Alkahest's ERC20EscrowObligation and EAS (checked by tests/local/lite.test.ts).
  */
-import { parseAbi, parseEventLogs, type Account, type Address, type Chain, type Hex, type PublicClient, type Transport, type WalletClient } from "viem";
-import { encodeBenchDemand, type BenchDemand } from "./demand.js";
+import { keccak256, parseAbi, parseEventLogs, toHex, type Account, type Address, type Chain, type Hex, type PublicClient, type Transport, type WalletClient } from "viem";
+import { decodeNlaDemand, decodeOracleDemand, encodeBenchDemand, type BenchDemand } from "./demand.js";
 
 export const ESCROW_ABI = parseAbi([
   "function doObligation((address arbiter, bytes demand, address token, uint256 amount) data, uint64 expirationTime) returns (bytes32)",
@@ -17,9 +17,27 @@ export const ERC20_ABI = parseAbi([
   "function symbol() view returns (string)",
   "function balanceOf(address) view returns (uint256)",
 ]);
+export const ESCROW_VIEW_ABI = parseAbi([
+  "function getObligationData(bytes32 uid) view returns ((address arbiter, bytes demand, address token, uint256 amount))",
+]);
+export const EAS_VIEW_ABI = parseAbi([
+  "function getAttestation(bytes32 uid) view returns ((bytes32 uid, bytes32 schema, uint64 time, uint64 expirationTime, uint64 revocationTime, bytes32 refUID, address recipient, address attester, bool revocable, bytes data))",
+]);
 export const EAS_EVENTS = parseAbi(["event Attested(address indexed recipient, address indexed attester, bytes32 uid, bytes32 indexed schemaUID)"]);
 
-export type LiteAddresses = { erc20EscrowObligation: Address; trustedOracleArbiter: Address };
+export const COMMIT_REVEAL_ABI = parseAbi([
+  "function computeCommitment(address claimer, bytes32 refUID, (bytes payload, bytes32 salt, bytes32 schema) data) pure returns (bytes32)",
+  "function commit(bytes32 commitment, uint256 commitDeadline) payable",
+  "function doObligation((bytes payload, bytes32 salt, bytes32 schema) data, bytes32 refUID) returns (bytes32)",
+  "function commitmentClaimed(bytes32) view returns (bool)",
+]);
+
+export type LiteAddresses = {
+  erc20EscrowObligation: Address;
+  trustedOracleArbiter: Address;
+  commitRevealObligation?: Address;
+  eas?: Address;
+};
 type Wallet = WalletClient<Transport, Chain, Account>;
 
 export async function createEscrowLite(
@@ -56,4 +74,83 @@ export async function collectLite(wallet: Wallet, a: LiteAddresses, escrowUid: H
 
 export async function reclaimLite(wallet: Wallet, a: LiteAddresses, escrowUid: Hex): Promise<Hex> {
   return wallet.writeContract({ address: a.erc20EscrowObligation, abi: ESCROW_ABI, functionName: "reclaim", args: [escrowUid] });
+}
+
+/** Seller: Arkhai commit-reveal delivery from a browser wallet (same flow as `bench deliver`). */
+export async function deliverLite(
+  wallet: Wallet,
+  pub: PublicClient,
+  a: LiteAddresses,
+  escrowUid: Hex,
+  delivery: string,
+  onStep?: (step: "commit" | "wait" | "reveal") => void,
+): Promise<{ fulfillmentUid: Hex; commitHash: Hex; revealHash: Hex }> {
+  const cr = a.commitRevealObligation;
+  if (!cr) throw new Error("commitRevealObligation address missing");
+  const salt = keccak256(toHex(`${Date.now()}-${Math.random()}-${wallet.account.address}`));
+  const data = { payload: toHex(delivery), salt, schema: keccak256(toHex("{item:string}")) };
+  const commitment = await pub.readContract({
+    address: cr,
+    abi: COMMIT_REVEAL_ABI,
+    functionName: "computeCommitment",
+    args: [wallet.account.address, escrowUid, data],
+  });
+  onStep?.("commit");
+  const commitHash = await wallet.writeContract({ address: cr, abi: COMMIT_REVEAL_ABI, functionName: "commit", args: [commitment, 3600n], value: 1n });
+  const committed = await pub.waitForTransactionReceipt({ hash: commitHash });
+  // CommitRevealObligation rejects a reveal in the commit's block (CommitmentTooRecent).
+  onStep?.("wait");
+  for (let i = 0; (await pub.getBlockNumber({ cacheTime: 0 })) <= committed.blockNumber; i++) {
+    if (i > 120) throw new Error("No new block within 2 minutes; try revealing again shortly.");
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  onStep?.("reveal");
+  const revealHash = await wallet.writeContract({ address: cr, abi: COMMIT_REVEAL_ABI, functionName: "doObligation", args: [data, escrowUid] });
+  const receipt = await pub.waitForTransactionReceipt({ hash: revealHash });
+  const [attested] = parseEventLogs({ abi: EAS_EVENTS, logs: receipt.logs, eventName: "Attested" });
+  if (!attested) throw new Error(`Reveal tx ${revealHash} emitted no Attested event`);
+  return { fulfillmentUid: attested.args.uid, commitHash, revealHash };
+}
+
+export type EscrowView = {
+  uid: Hex;
+  buyer: Address;
+  token: Address;
+  amount: bigint;
+  arbiter: Address;
+  oracle: Address;
+  demand: string;
+  rubric: string;
+  provider: string;
+  expirationTime: bigint;
+  revoked: boolean;
+};
+
+/** Read an escrow and its plain-English terms with plain viem (browser-safe). */
+export async function readEscrowLite(pub: PublicClient, a: LiteAddresses, escrowUid: Hex): Promise<EscrowView> {
+  if (!a.eas) throw new Error("eas address missing");
+  const [data, att] = await Promise.all([
+    pub.readContract({ address: a.erc20EscrowObligation, abi: ESCROW_VIEW_ABI, functionName: "getObligationData", args: [escrowUid] }),
+    pub.readContract({ address: a.eas, abi: EAS_VIEW_ABI, functionName: "getAttestation", args: [escrowUid] }),
+  ]);
+  const { oracle, data: inner } = decodeOracleDemand(data.demand);
+  let nla = { arbitrationProvider: "", arbitrationModel: "", arbitrationPrompt: "", demand: "" };
+  try {
+    nla = decodeNlaDemand(inner);
+  } catch {
+    /* not an NLA demand: leave the text empty */
+  }
+  return {
+    uid: escrowUid,
+    buyer: att.recipient,
+    token: data.token,
+    amount: data.amount,
+    arbiter: data.arbiter,
+    oracle,
+    demand: nla.demand,
+    rubric: nla.arbitrationPrompt,
+    provider: nla.arbitrationProvider,
+    expirationTime: att.expirationTime,
+    revoked: att.revocationTime !== 0n,
+  };
 }

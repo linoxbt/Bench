@@ -14,7 +14,7 @@ export default async function OpenCase({ searchParams }: { searchParams: Promise
   return (
     <Container className="pb-24">
       <AppHeader eyebrow="Case lookup" title="Open a case." lede="Follow an escrow from delivery to payout: the demand, the jury's votes, the verdict and the settlement." />
-      <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_22rem]">
         <Card title="Case uids">
           <form className="space-y-5" method="get">
             <label className="block space-y-2">

@@ -8,7 +8,7 @@ import Link from "next/link";
 import { Container } from "@/components/site/blocks";
 import { AppHeader, Card, Hash, Note, Stamp } from "@/components/ui";
 import { PUBLIC } from "@/lib/config";
-import { errorText } from "@/lib/wallet";
+import { errorText } from "@/components/wallet/WalletProvider";
 
 const DEMOS = {
   pass: {
@@ -94,7 +94,7 @@ export default function Preview() {
         title="Ask the jury."
         lede="Paste a demand and a delivery. Real validators judge it, with no escrow, no wallet and no money."
       />
-      <div className="grid gap-6 lg:grid-cols-[1fr_24rem]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_24rem]">
         <Card
           title="Demand and delivery"
           right={

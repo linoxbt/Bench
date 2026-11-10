@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { createPublicClient, http, type Address } from "viem";
 import { baseSepolia } from "viem/chains";
-import { ALKAHEST_BASE_SEPOLIA, ALKAHEST_BRADBURY, genlayerChain } from "@bench/core/browser";
+import { ALKAHEST_BASE_SEPOLIA, genlayerChain } from "@bench/core/browser";
 import { genlayer } from "@bench/core";
 import { Container, PageHero } from "@/components/site/blocks";
 import { ArrowUpRight } from "@/components/site/icons";
@@ -37,7 +37,7 @@ export default async function Status() {
   const [studioCases, studioBCases, a4221, aBase, bradburyCases] = await Promise.all([
     studio ? judgeCases(studio, "studionet") : Promise.resolve(undefined),
     judgeCases(STUDIO_B, "studionet"),
-    codeAt("4221", ALKAHEST_BRADBURY.trustedOracleArbiter),
+    codeAt("4221", PUBLIC.alkahest.trustedOracleArbiter),
     codeAt("base", ALKAHEST_BASE_SEPOLIA.trustedOracleArbiter),
     PUBLIC.judge ? judgeCases(PUBLIC.judge, "bradbury") : Promise.resolve(undefined),
   ]);
@@ -70,8 +70,8 @@ export default async function Status() {
     {
       name: "Alkahest TrustedOracleArbiter",
       network: "GenLayer Chain 4221",
-      address: ALKAHEST_BRADBURY.trustedOracleArbiter,
-      href: `https://explorer.testnet-chain.genlayer.com/address/${ALKAHEST_BRADBURY.trustedOracleArbiter}`,
+      address: PUBLIC.alkahest.trustedOracleArbiter,
+      href: `https://explorer.testnet-chain.genlayer.com/address/${PUBLIC.alkahest.trustedOracleArbiter}`,
       state: a4221 === undefined ? "unknown" : a4221 ? "live" : "missing",
       detail: a4221 ? "Contract code present" : "No code at the published address; needs pnpm deploy:alkahest",
     },

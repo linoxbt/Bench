@@ -22,3 +22,4 @@ contracts/evm/artifacts/*
 next-env.d.ts
 out/
 cache/
+tests/web/screenshots/

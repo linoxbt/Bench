@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatUnits, type Hex } from "viem";
-import { ALKAHEST_BRADBURY, evmAddressUrl, genvmTxUrl, LIMITS } from "@bench/core/browser";
+import { evmAddressUrl, genvmTxUrl, LIMITS } from "@bench/core/browser";
+import { JudgeButton } from "@/components/wallet/JudgeButton";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { JuryPanel } from "@/components/JuryPanel";
 import { SettleButtons } from "@/components/SettleButtons";
@@ -124,9 +125,7 @@ export default async function CasePage({
             </div>
           ) : (
             <Note>
-              {"err" in view.verdict
-                ? `Couldn't read BenchJudge: ${view.verdict.err}`
-                : "Not judged yet. Anyone can open the case: bench judge --escrow … --fulfillment …"}
+              {"err" in view.verdict ? `Couldn't read BenchJudge: ${view.verdict.err}` : "Not judged yet."}
             </Note>
           )}
         </Card>
@@ -147,14 +146,20 @@ export default async function CasePage({
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card title="04 · Verdict">
-          {verdict ? <Stamp fulfilled={verdict.fulfilled} reason={verdict.reason} /> : <Note>No verdict yet.</Note>}
+          {verdict ? (
+            <Stamp fulfilled={verdict.fulfilled} reason={verdict.reason} />
+          ) : "err" in view.verdict ? (
+            <Note>No verdict available.</Note>
+          ) : (
+            <JudgeButton escrowUid={e} fulfillmentUid={f} />
+          )}
         </Card>
         <Card title="05 · On Alkahest">
           <div className="space-y-4 text-sm">
             {landed ? (
               <p>
                 <span className={landed.decision ? "text-pass" : "text-fail"}>ArbitrationMade: {String(landed.decision)}</span> from BenchJudge on{" "}
-                <a className="underline" href={evmAddressUrl(ALKAHEST_BRADBURY.trustedOracleArbiter)} target="_blank" rel="noreferrer">
+                <a className="underline" href={evmAddressUrl(PUBLIC.alkahest.trustedOracleArbiter)} target="_blank" rel="noreferrer">
                   TrustedOracleArbiter
                 </a>
                 .

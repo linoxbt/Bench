@@ -18,6 +18,7 @@ export const NAV: NavSection[] = [
     items: [
       { label: "Preview a verdict", href: "/preview", description: "Ask a live jury. No wallet, no money" },
       { label: "Lock an escrow", href: "/new", description: "Escrow tokens against a plain-English demand" },
+      { label: "Deliver work", href: "/deliver", description: "Seller: read the terms and deliver" },
       { label: "Open a case", href: "/case", description: "Track an escrow from delivery to payout" },
       { label: "Case explorer", href: "/cases", description: "Recent verdicts, live from the chain" },
     ],

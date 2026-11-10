@@ -2,13 +2,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import { formatUnits, parseUnits, type Address, type Hex } from "viem";
-import { ALKAHEST_BRADBURY, ERC20_ABI, createEscrowLite, evmTxUrl, parseExpiry } from "@bench/core/browser";
+import { ERC20_ABI, createEscrowLite, parseExpiry } from "@bench/core/browser";
 import { Container } from "@/components/site/blocks";
 import { AppHeader, Card, Hash, Note, Stamp } from "@/components/ui";
 import { PUBLIC } from "@/lib/config";
-import { connectWallet, errorText, publicClient } from "@/lib/wallet";
+import { errorText, useWallet } from "@/components/wallet/WalletProvider";
+import { publicClient, txUrl } from "@/lib/chain";
 
 export default function NewEscrow() {
+  const w = useWallet();
+  const [copied, setCopied] = useState(false);
   const [demand, setDemand] = useState(
     "Landing-page hero copy for a note-taking app. Under 60 words. Must mention the free tier and that no credit card is needed. No hype words.",
   );
@@ -25,8 +28,12 @@ export default function NewEscrow() {
     try {
       if (!PUBLIC.judge) throw new Error("NEXT_PUBLIC_BENCH_JUDGE is not set for this deployment.");
       const tokenAddr = token as Address;
-      setBusy("Connecting wallet…");
-      const wallet = await connectWallet();
+      if (w.status !== "connected") {
+        w.openModal();
+        return;
+      }
+      setBusy("Confirm in your wallet…");
+      const wallet = await w.getWalletClient();
       const decimals = await publicClient.readContract({ address: tokenAddr, abi: ERC20_ABI, functionName: "decimals" });
       const symbol = await publicClient.readContract({ address: tokenAddr, abi: ERC20_ABI, functionName: "symbol" }).catch(() => "tokens");
       const value = parseUnits(amount, decimals);
@@ -34,7 +41,7 @@ export default function NewEscrow() {
       const r = await createEscrowLite(
         wallet,
         publicClient,
-        ALKAHEST_BRADBURY,
+        PUBLIC.alkahest,
         PUBLIC.judge,
         tokenAddr,
         value,
@@ -56,7 +63,7 @@ export default function NewEscrow() {
         title="Lock an escrow."
         lede="Escrow tokens against a plain-English demand. Only BenchJudge's verdict can release them."
       />
-      <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_22rem]">
         <Card title="Terms">
           <div className="space-y-5">
             <label className="block space-y-2">
@@ -81,9 +88,17 @@ export default function NewEscrow() {
               <span className="label">Expires in</span>
               <input className="field" value={expires} onChange={(e) => setExpires(e.target.value)} />
             </label>
-            <button className="pill pill-primary" disabled={!!busy || !token} onClick={submit}>
-              {busy ?? "Connect wallet & lock"}
+            <button className="pill pill-primary" disabled={!!busy || (w.status === "connected" && !token)} onClick={submit}>
+              {busy ??
+                (w.status !== "connected"
+                  ? "Connect wallet"
+                  : !w.onRightChain
+                    ? `Switch to ${PUBLIC.chainName} & lock`
+                    : "Approve & lock escrow")}
             </button>
+            {!PUBLIC.judge && (
+              <Note tone="warn">BenchJudge isn&apos;t deployed on Bradbury for this site yet, so escrows can&apos;t be locked here. Try the Studionet preview.</Note>
+            )}
             {error && <Note tone="fail">{error}</Note>}
           </div>
         </Card>
@@ -97,15 +112,23 @@ export default function NewEscrow() {
                   escrowUid <Hash value={result.escrowUid} />
                 </p>
                 <p className="text-muted">
-                  tx <Hash value={result.hash} href={evmTxUrl(result.hash)} />
+                  tx <Hash value={result.hash} href={txUrl(result.hash)} />
                 </p>
-                <Note>
-                  Share the escrowUid, demand and rubric with the seller. They deliver with <code>bench deliver</code>; anyone opens the case with{" "}
-                  <code>bench judge</code>.
-                </Note>
-                <Link className="pill pill-secondary pill-sm" href={`/case?escrow=${result.escrowUid}`}>
-                  Track this escrow
-                </Link>
+                <Note>Send the seller this delivery link. It shows them the demand and rubric before they deliver.</Note>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    className="pill pill-primary pill-sm"
+                    onClick={async () => {
+                      await navigator.clipboard?.writeText(`${window.location.origin}/deliver?escrow=${result.escrowUid}`);
+                      setCopied(true);
+                    }}
+                  >
+                    {copied ? "Link copied" : "Copy delivery link"}
+                  </button>
+                  <Link className="pill pill-secondary pill-sm" href={`/case?escrow=${result.escrowUid}`}>
+                    Track this escrow
+                  </Link>
+                </div>
               </div>
             </Card>
           ) : (

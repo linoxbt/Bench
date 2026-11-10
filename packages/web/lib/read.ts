@@ -1,6 +1,5 @@
 import "server-only";
 import {
-  ALKAHEST_BRADBURY,
   getArbitration,
   getCase,
   getEscrow,
@@ -20,7 +19,7 @@ import { PUBLIC } from "./config";
 
 /** Read-only: a throwaway key only satisfies the client constructors; nothing is ever signed with it. */
 const reader = () => walletFromKey(generatePrivateKey());
-const cfg = (): BenchConfig => ({ addresses: ALKAHEST_BRADBURY, judge: PUBLIC.judge! });
+const cfg = (): BenchConfig => ({ addresses: PUBLIC.alkahest, judge: PUBLIC.judge! });
 
 async function settle<T>(p: Promise<T>): Promise<{ ok: T } | { err: string }> {
   try {

@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import { NAV } from "@/lib/nav";
 import { Chevron, ArrowUpRight } from "./icons";
 import { Logo, Mark } from "./Logo";
+import { ConnectButton } from "@/components/wallet/ConnectButton";
 
 /**
  * Sticky header with desktop dropdowns and a hamburger that opens a full-screen menu.
@@ -71,10 +72,12 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <Link href="/preview" className="pill pill-primary pill-sm hidden md:inline-flex">
-            Try the jury
-            <Chevron className="h-3.5 w-3.5" />
-          </Link>
+          <div className="hidden sm:block">
+            <ConnectButton />
+          </div>
+          <div className="sm:hidden">
+            <ConnectButton compact />
+          </div>
           <button
             className="flex h-10 w-10 items-center justify-center rounded-lg text-ink hover:bg-wash"
             aria-label="Open menu"
@@ -137,6 +140,10 @@ export function Header() {
                 })}
               </ul>
               <aside className="mt-10 space-y-4 lg:mt-6">
+                <div className="rounded-2xl border border-line p-5">
+                  <p className="mb-3 text-sm text-muted">Wallet</p>
+                  <ConnectButton full />
+                </div>
                 <div className="rounded-2xl bg-blue p-6 text-white">
                   <p className="text-sm text-white/75">Live on Studionet</p>
                   <p className="mt-2 text-xl font-medium leading-snug">Ask a real validator jury about any demand and delivery.</p>

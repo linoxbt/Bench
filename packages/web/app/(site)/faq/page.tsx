@@ -37,7 +37,7 @@ export default function Faq() {
       <PageHero eyebrow="FAQ" title="Questions, answered." lede="Short answers about the jury, the money and the safety checks." />
       <Container className="space-y-16 pb-28">
         {GROUPS.map(([g, qs]) => (
-          <section key={g} className="grid gap-6 lg:grid-cols-[1fr_2fr]">
+          <section key={g} className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_2fr]">
             <h2 className="text-xl font-medium text-ink">{g}</h2>
             <div className="divide-y divide-line border-y border-line">
               {qs.map(([q, a]) => (

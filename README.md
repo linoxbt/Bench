@@ -25,7 +25,9 @@ Then follow the [agent skill](skill/bench/SKILL.md): `deliver` → `judge` → `
 ## Status (Nov 9, 2026)
 
 **Live:** **https://bench-ivory.vercel.app**: landing page, How it works, Use cases, Trust model, Architecture, Developers, Case explorer, Status and
-FAQ, plus the app pages (Preview a verdict, Lock an escrow, Open a case). It reads the Studionet sandbox until a Bradbury BenchJudge exists, and
+FAQ, plus the app pages (Preview a verdict, Lock an escrow, Deliver work, Open a case). **Connect wallet** works with any browser
+wallet (EIP-6963 discovery: MetaMask, Coinbase Wallet, Rabby, …), adds/switches to GenLayer Bradbury, shows GEN and bUSD balances,
+mints test bUSD, and signs every step: lock, deliver (commit-reveal), open the case on BenchJudge, collect or reclaim. It reads the Studionet sandbox until a Bradbury BenchJudge exists, and
 `/preview` runs real validators.
 
 | Piece | State |
@@ -118,6 +120,7 @@ tests/direct/                   genlayer-test direct mode (mocked web + LLM + EV
 tests/local/                    Alkahest bytecode on a Hardhat node (chain id 4221): core, browser calls, CLI
 tests/integration/              real consensus on Studionet/Bradbury (manual)
 tests/e2e/                      full Bradbury runs incl. payout and reclaim (manual, BENCH_E2E=1)
+tests/web/                      Playwright wallet flow with an injected EIP-6963 test wallet on a local chain
 fixtures/cases/                 demo demands and deliveries (pass, fail, URL, prompt injection)
 ```
 
@@ -132,6 +135,7 @@ pnpm test:local                          # 13 tests on Alkahest bytecode: lifecy
 (cd contracts/evm && forge test)         # BenchBridgeReceiver
 pytest tests/integration -p gltest --network studionet    # real validators; accounts come from .env
 BENCH_E2E=1 pnpm e2e                     # manual: full Bradbury runs (each waits for finality)
+pnpm test:web                            # browser: connect wallet → mint → lock → deliver → verdict → collect, on a local chain
 ```
 
 CI runs the lint, the direct tests, typechecks, the unit and local-chain tests and the web build on every push.
