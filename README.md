@@ -1,5 +1,7 @@
 # Bench
 
+[![ci](https://github.com/linoxbt/Bench/actions/workflows/ci.yml/badge.svg?branch=ccr-76225ed0-dg5csa)](https://github.com/linoxbt/Bench/actions/workflows/ci.yml)
+
 **Arkhai's natural-language escrows, judged by a jury of independent GenLayer validators instead of a single AI oracle.**
 
 Internet Court · GenLayer · Arkhai — _logos and the 45-second video go here once recorded._
@@ -27,7 +29,8 @@ Then follow the [agent skill](skill/bench/SKILL.md): `deliver` → `judge` → `
 **Live:** **https://bench-ivory.vercel.app**: landing page, How it works, Use cases, Trust model, Architecture, Developers, Case explorer, Status and
 FAQ, plus the app pages (Preview a verdict, Lock an escrow, Deliver work, Open a case). **Connect wallet** works with any browser
 wallet (EIP-6963 discovery: MetaMask, Coinbase Wallet, Rabby, …), adds/switches to GenLayer Bradbury, shows GEN and bUSD balances,
-mints test bUSD, and signs every step: lock, deliver (commit-reveal), open the case on BenchJudge, collect or reclaim. It reads the Studionet sandbox until a Bradbury BenchJudge exists, and
+mints test bUSD, and signs every step: lock, deliver (commit-reveal), open the case on BenchJudge, collect or reclaim.
+WalletConnect (Reown) adds a QR option for phone wallets; its project ID is set in Vercel, not in the repo. It reads the Studionet sandbox until a Bradbury BenchJudge exists, and
 `/preview` runs real validators.
 
 | Piece | State |
