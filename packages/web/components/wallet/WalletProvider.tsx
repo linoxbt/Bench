@@ -7,6 +7,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createWalletClient, custom, getAddress, type Account, type Address, type Chain, type EIP1193Provider, type Transport, type WalletClient } from "viem";
 import { walletChain } from "@/lib/chain";
+import { WALLETCONNECT_ICON, walletConnectProvider } from "@/lib/walletconnect";
 
 export type WalletInfo = { uuid: string; name: string; icon: string; rdns: string };
 export type WalletDetail = { info: WalletInfo; provider: EIP1193Provider };
@@ -63,11 +64,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       seen.set(d.info.rdns || d.info.uuid, d);
       setWallets([...seen.values()]);
     };
+    // WalletConnect (QR / mobile wallets) when a Reown project ID is configured; the SDK loads on first use.
+    const wc = walletConnectProvider();
+    if (wc) add({ info: { uuid: "walletconnect", name: "WalletConnect", icon: WALLETCONNECT_ICON, rdns: "walletconnect" }, provider: wc });
     const onAnnounce = (e: CustomEvent<WalletDetail>) => add(e.detail);
     window.addEventListener("eip6963:announceProvider", onAnnounce);
     window.dispatchEvent(new Event("eip6963:requestProvider"));
     const fallback = setTimeout(() => {
-      if (seen.size === 0 && window.ethereum) {
+      if (![...seen.keys()].some((k) => k !== "walletconnect") && window.ethereum) {
         add({ info: { uuid: "injected", name: "Browser wallet", icon: "", rdns: "injected" }, provider: window.ethereum });
       }
     }, 400);
@@ -125,6 +129,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     async (w: WalletDetail) => {
       setStatus("connecting");
       setError(undefined);
+      if (w.info.rdns === "walletconnect") setModalOpen(false); // Reown shows its own QR modal
       try {
         const accounts = (await w.provider.request({ method: "eth_requestAccounts" })) as string[];
         if (!accounts.length) throw new Error("The wallet returned no account.");
@@ -140,7 +145,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const disconnect = useCallback(async () => {
     try {
-      await current?.provider.request({ method: "wallet_revokePermissions", params: [{ eth_accounts: {} }] } as never);
+      if (current?.info.rdns === "walletconnect") await (current.provider as unknown as { disconnect(): Promise<void> }).disconnect();
+      else await current?.provider.request({ method: "wallet_revokePermissions", params: [{ eth_accounts: {} }] } as never);
     } catch {
       /* not every wallet supports revoking; forgetting locally is enough */
     }

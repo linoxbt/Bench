@@ -32,9 +32,10 @@
     "alkahest-ts": "1.1.2",
     "genlayer-js": "1.1.8",
     "hardhat": "2.29.1",
+    "playwright": "1.63.0",
+    "tsx": "4.23.15",
     "typescript": "5.9.3",
     "viem": "2.57.17",
-    "vitest": "5.1.0",
-    "tsx": "4.23.15"
+    "vitest": "5.1.0"
   }
 }

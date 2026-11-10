@@ -59,7 +59,8 @@ To finish: fund the keys in `.env` (addresses are printed in it), then run Deplo
    For the free `/preview` sandbox, also `BENCH_NETWORK=studionet pnpm deploy:judge`.
 5. **Demo token:** `DEPLOYER_KEY=... BUYER_ADDRESS=0x... pnpm deploy:token` → `export BENCH_USD=0x...`.
 6. **Viewer on Vercel:** root directory `packages/web`, install command `pnpm install` (monorepo root), env
-   `NEXT_PUBLIC_BENCH_JUDGE`, `NEXT_PUBLIC_BENCH_JUDGE_STUDIONET`, `NEXT_PUBLIC_BENCH_USD`. Put the official partner logos in
+   `NEXT_PUBLIC_BENCH_JUDGE`, `NEXT_PUBLIC_BENCH_JUDGE_STUDIONET`, `NEXT_PUBLIC_BENCH_USD`, and optionally
+   `NEXT_PUBLIC_REOWN_PROJECT_ID` (adds a WalletConnect QR option; the ID is public, so restrict it to your domains in the Reown dashboard). Put the official partner logos in
    `packages/web/public/logos/` (see the README there).
 
 **Expiry rule.** Escrows must outlast delivery + GenLayer finality (~30 min) + any appeals: 24 h is the default. Reclaim opens only

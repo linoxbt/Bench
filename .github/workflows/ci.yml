@@ -20,12 +20,26 @@ jobs:
           path: |
             ~/.cache/genvm-linter
             ~/.cache/gltest-direct
-          key: genvm-${{ hashFiles('requirements.txt') }}-v0.2.16
+          key: genvm-${{ hashFiles('requirements.txt') }}-v0.2.16-sdk-v0.2.12
       - run: pip install -r requirements.txt
+      - name: Pin the GenVM SDK the direct tests load (v0.2.12 carries the runner the contracts pin)
+        # genlayer-test otherwise downloads the newest GenVM release, whose assets don't match (HTTP 404).
+        run: |
+          mkdir -p ~/.cache/gltest-direct && cd ~/.cache/gltest-direct
+          if [ ! -f genvm-universal-v0.2.12.tar.xz ]; then
+            curl -sSfL -o genvm-universal-v0.2.12.tar.xz https://github.com/genlayerlabs/genvm/releases/download/v0.2.12/genvm-universal.tar.xz
+          fi
+          echo "4f0b358ec98ec148be9b95cdfb0f0e1a6cbe64da0194fdfac3fffc6f5d1d93e2  genvm-universal-v0.2.12.tar.xz" | sha256sum -c -
       - run: genvm-lint check contracts/bench_judge.py
       - run: genvm-lint check contracts/bench_judge_b.py
       - run: genvm-lint check contracts/probe/gate_probe.py
-      - run: pytest tests/direct -p gltest -q
+      - name: Direct-mode tests
+        # gltest.config.yaml names network accounts for the integration suite; direct mode never uses them,
+        # so each run gets fresh throwaway keys instead of secrets.
+        run: |
+          export GENLAYER_KEY=0x$(python -c "import secrets; print(secrets.token_hex(32))")
+          export BENCH_SELLER_KEY=0x$(python -c "import secrets; print(secrets.token_hex(32))")
+          pytest tests/direct -p gltest -q
 
   typescript:
     name: typescript (typecheck, unit, local Alkahest, web build)
@@ -64,3 +78,31 @@ jobs:
           version: v1.7.1
       - run: forge test
         working-directory: contracts/evm
+
+  web-e2e:
+    name: web (wallet flow in Chromium)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install Chromium for Playwright
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Connect wallet → mint → lock → deliver → verdict → collect (local chain)
+        run: pnpm test:web
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wallet-e2e-screenshots
+          path: tests/web/screenshots/
+          if-no-files-found: ignore

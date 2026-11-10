@@ -33,4 +33,6 @@ export const PUBLIC = {
   chainRpc: process.env.NEXT_PUBLIC_CHAIN_RPC ?? "https://rpc-bradbury.genlayer.com",
   chainExplorer: process.env.NEXT_PUBLIC_CHAIN_EXPLORER ?? "https://explorer-bradbury.genlayer.com",
   alkahest: alkahest(),
+  /** Reown (WalletConnect) project ID: a public identifier. Protect it with the domain allowlist in the Reown dashboard. */
+  reownProjectId: process.env.NEXT_PUBLIC_REOWN_PROJECT_ID || undefined,
 };

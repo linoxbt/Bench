@@ -47,7 +47,7 @@ export function ConnectModal() {
         </div>
         <p className="mt-3 text-sm text-muted">Lock escrows, deliver work and open cases on GenLayer Bradbury. Bench never sees your keys.</p>
 
-        {wallets.length > 0 ? (
+        {wallets.length > 0 && (
           <ul className="mt-6 space-y-2">
             {wallets.map((w) => (
               <li key={w.info.uuid}>
@@ -67,12 +67,15 @@ export function ConnectModal() {
                     </span>
                   )}
                   <span className="flex-1 font-medium text-ink">{w.info.name}</span>
-                  <span className="text-xs text-muted">{status === "connecting" ? "Check your wallet…" : "Detected"}</span>
+                  <span className="text-xs text-muted">
+                    {status === "connecting" ? "Check your wallet…" : w.info.rdns === "walletconnect" ? "Scan with your phone" : "Detected"}
+                  </span>
                 </button>
               </li>
             ))}
           </ul>
-        ) : (
+        )}
+        {!wallets.some((x) => x.info.rdns !== "walletconnect") && (
           <div className="mt-6 rounded-2xl bg-wash p-5">
             <p className="font-medium text-ink">No wallet found in this browser</p>
             <p className="mt-1 text-sm text-muted">Install one, then reload. You can still preview verdicts without a wallet.</p>
