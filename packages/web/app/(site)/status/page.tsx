@@ -7,7 +7,7 @@ import { Container, PageHero } from "@/components/site/blocks";
 import { ArrowUpRight } from "@/components/site/icons";
 import { PUBLIC } from "@/lib/config";
 
-export const metadata: Metadata = { title: "Status & deployments" };
+export const metadata: Metadata = { title: "Status & deployments", description: "Live networks and contract addresses, checked against the chain." };
 export const revalidate = 60;
 
 type Row = { name: string; network: string; address?: string; href?: string; state: "live" | "missing" | "pending" | "unknown"; detail: string };

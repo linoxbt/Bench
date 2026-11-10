@@ -4,7 +4,7 @@ import { PipelineArt } from "@/components/site/art";
 import { Container, CtaBand, PageHero } from "@/components/site/blocks";
 import { Chevron } from "@/components/site/icons";
 
-export const metadata: Metadata = { title: "How it works" };
+export const metadata: Metadata = { title: "How it works", description: "From locked funds to payout in four steps: lock, deliver, judge, settle." };
 
 const STEPS = [
   {

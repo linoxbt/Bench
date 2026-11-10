@@ -36,7 +36,7 @@ export default function Preview() {
   const [delivery, setDelivery] = useState<string>(DEMOS.pass.delivery);
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState<string>();
-  const [result, setResult] = useState<{ verdict: Verdict; hash: string; votes?: string }>();
+  const [result, setResult] = useState<{ verdict: Verdict; hash: string; votes?: string; caseId: string }>();
   const warnings = deliveryWarnings(delivery);
 
   // Prefill from /use-cases links (?demand=…&rubric=…).
@@ -79,6 +79,7 @@ export default function Preview() {
         verdict: c,
         hash: String(hash),
         votes: votes ? `${votes.filter((v) => v === "AGREE").length}/${votes.length} validators agreed` : undefined,
+        caseId: `preview:${id}`,
       });
     } catch (e) {
       setError(errorText(e));
@@ -159,6 +160,9 @@ export default function Preview() {
                 <p className="text-sm text-muted">
                   tx <Hash value={result.hash} href={genvmTxUrl(result.hash, "studionet")} />
                 </p>
+                <Link href={`/cases/${encodeURIComponent(result.caseId)}?tx=${result.hash}`} className="pill pill-primary pill-sm">
+                  See the jury&apos;s votes
+                </Link>
               </div>
             ) : busy ? (
               <div className="space-y-3">

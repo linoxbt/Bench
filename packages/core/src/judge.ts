@@ -114,7 +114,7 @@ export async function appeal(gl: GenLayer, hash: Hex) {
   return gl.client.appealTransaction({ account: gl.account, txId: hash });
 }
 
-export type JuryVote = { validator: string; vote: string };
+export type JuryVote = { validator: string; vote: string; model?: string; leader?: boolean };
 export type Jury = {
   status: string;
   round: number;
@@ -126,24 +126,57 @@ export type Jury = {
   executionResult?: string;
 };
 
+/** "policy:prd-gpt-5-4" → "GPT-5.4", "policy:prd-gemini" → "Gemini". */
+export function modelLabel(raw: unknown): string | undefined {
+  if (typeof raw !== "string" || !raw) return undefined;
+  const name = raw.replace(/^policy:/, "").replace(/^prd-/, "");
+  const known: Record<string, string> = { "gpt-5-4": "GPT-5.4", gemini: "Gemini", gemma: "Gemma", minimax: "MiniMax", claude: "Claude", llama: "Llama", qwen: "Qwen", deepseek: "DeepSeek" };
+  return known[name] ?? name.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+type RawNode = { vote?: string; node_config?: { address?: string; model?: string; primary_model?: { model?: string } | string } };
+
 /**
  * Summarise the validator votes in a GenLayer receipt for the jury panel.
- * genlayer-js 1.1.8 exposes validator addresses and votes per round, not model names,
- * so the viewer never shows model badges.
+ * Bradbury receipts carry votes per round (lastRound); Studionet receipts carry a votes map and each
+ * validator's node config, including the model policy it ran, so model names are shown only when reported.
  */
 export function juryFromTx(tx: GenLayerTransaction): Jury {
   const r = tx.lastRound;
-  const validators = r?.roundValidators ?? [];
-  const names = r?.validatorVotesName ?? [];
-  const votes = validators.map((validator, i) => ({ validator, vote: String(names[i] ?? "NOT_VOTED") }));
+  const cd = tx.consensus_data as { votes?: Record<string, string>; validators?: RawNode[]; leader_receipt?: RawNode[] } | undefined;
+  let votes: JuryVote[];
+  let leader = tx.lastLeader as string | undefined;
+  if (r?.roundValidators?.length) {
+    const names = r.validatorVotesName ?? [];
+    votes = r.roundValidators.map((validator, i) => ({ validator, vote: String(names[i] ?? "NOT_VOTED") }));
+  } else if (cd?.votes) {
+    const models = new Map<string, string | undefined>();
+    const modelOf = (n: RawNode) => {
+      const pm = n.node_config?.primary_model;
+      return modelLabel(typeof pm === "string" ? pm : (pm?.model ?? n.node_config?.model));
+    };
+    for (const n of cd.validators ?? []) if (n.node_config?.address) models.set(n.node_config.address.toLowerCase(), modelOf(n));
+    const lead = cd.leader_receipt?.[0];
+    if (lead?.node_config?.address) {
+      leader = lead.node_config.address;
+      models.set(leader.toLowerCase(), modelOf(lead));
+    }
+    const norm = (v: string) => ({ agree: "AGREE", disagree: "DISAGREE", timeout: "TIMEOUT", idle: "NOT_VOTED" })[v.toLowerCase()] ?? v.toUpperCase();
+    votes = Object.entries(cd.votes).map(([validator, v]) => {
+      const isLeader = leader?.toLowerCase() === validator.toLowerCase();
+      return { validator, vote: isLeader ? "LEADER" : norm(v), model: models.get(validator.toLowerCase()), leader: isLeader };
+    });
+    votes.sort((a, b) => Number(b.leader) - Number(a.leader));
+  } else votes = [];
+  const counted = votes.filter((v) => v.vote !== "LEADER");
   return {
     status: String(tx.statusName ?? tx.status ?? "UNKNOWN"),
     round: Number(r?.round ?? 0),
     rounds: Number(tx.numOfRounds ?? (r ? 1 : 0)),
     votes,
-    agree: votes.filter((v) => v.vote === "AGREE").length,
-    total: votes.length,
-    leader: tx.lastLeader,
+    agree: counted.filter((v) => v.vote === "AGREE").length,
+    total: counted.length,
+    leader,
     executionResult: tx.txExecutionResultName,
   };
 }

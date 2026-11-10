@@ -4,7 +4,7 @@ import { Code, Container, CtaBand, PageHero } from "@/components/site/blocks";
 import { ArrowUpRight, IconBot, IconDoc, IconTerminal } from "@/components/site/icons";
 import { PUBLIC } from "@/lib/config";
 
-export const metadata: Metadata = { title: "Developers" };
+export const metadata: Metadata = { title: "Developers", description: "The bench CLI, the agent skill and the TypeScript SDK for Alkahest and GenLayer." };
 
 const COMMANDS = [
   ["bench escrow", "Buyer: lock tokens against a demand and rubric"],

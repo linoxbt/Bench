@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Container, PageHero } from "@/components/site/blocks";
 import { PUBLIC } from "@/lib/config";
-import { liveStats, recentCases } from "@/lib/read";
+import { liveStats, recentCases, verdictHref } from "@/lib/read";
 
-export const metadata: Metadata = { title: "Case explorer" };
+export const metadata: Metadata = { title: "Case explorer", description: "Every verdict on the record, read live from BenchJudge." };
 export const revalidate = 20;
 
 export default async function Cases() {
@@ -41,13 +41,10 @@ export default async function Cases() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="hidden max-w-[12rem] truncate font-mono text-xs text-faint lg:inline">{id}</span>
-                  {c?.escrow_uid ? (
-                    <Link className="pill pill-secondary pill-sm" href={`/case/${c.escrow_uid}/${c.fulfillment_uid}`}>
-                      View
-                    </Link>
-                  ) : (
-                    <span className="rounded-full bg-wash px-3 py-1 text-xs text-muted">preview</span>
-                  )}
+                  {c?.status === "preview" && <span className="rounded-full bg-wash px-3 py-1 text-xs text-muted">preview</span>}
+                  <Link className="pill pill-secondary pill-sm" href={verdictHref(id)}>
+                    View
+                  </Link>
                 </div>
               </div>
             ))}

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Container, CtaBand, PageHero } from "@/components/site/blocks";
 import { Check, Close } from "@/components/site/icons";
 
-export const metadata: Metadata = { title: "Trust model" };
+export const metadata: Metadata = { title: "Trust model", description: "What Bench trusts, what it doesn't, and the six checks before any jury convenes." };
 
 const NOT_TRUSTED = [
   ["The seller", "Can deliver anything; the jury judges it against the demand."],

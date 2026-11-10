@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Container, CtaBand, PageHero } from "@/components/site/blocks";
 import { Chevron } from "@/components/site/icons";
 
-export const metadata: Metadata = { title: "FAQ" };
+export const metadata: Metadata = { title: "FAQ", description: "Short answers about the jury, the money and the safety checks." };
 
 const GROUPS: [string, [string, string][]][] = [
   [

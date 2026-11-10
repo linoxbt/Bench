@@ -71,3 +71,27 @@ export async function liveStats(): Promise<{ cases?: number; network: "bradbury"
   const r = await settle(genlayer({ network }).client.readContract({ address: judge, functionName: "case_count", args: [] }));
   return { cases: "ok" in r ? Number(r.ok) : undefined, network };
 }
+
+export type VerdictView = {
+  id: string;
+  network: "bradbury" | "studionet";
+  judge?: `0x${string}`;
+  verdict: { ok: Case | undefined } | { err: string };
+  jury?: { ok: Jury } | { err: string };
+};
+
+/** One verdict by case id (`preview:<id>` lives on the Studionet sandbox; fulfillment uids on Bradbury). */
+export async function readVerdict(id: string, tx?: Hex): Promise<VerdictView> {
+  const studio = id.startsWith("preview:") || !PUBLIC.judge;
+  const network = studio ? "studionet" : "bradbury";
+  const judge = studio ? PUBLIC.judgeStudionet : PUBLIC.judge;
+  if (!judge) return { id, network, verdict: { err: "No BenchJudge is configured for this network." } };
+  const gl = genlayer({ network });
+  const [verdict, jury] = await Promise.all([
+    settle(getCase(gl, id, judge)),
+    tx ? settle(getTx(gl, tx).then(juryFromTx)) : Promise.resolve(undefined),
+  ]);
+  return { id, network, judge, verdict, jury };
+}
+
+export const verdictHref = (id: string, tx?: string) => `/cases/${encodeURIComponent(id)}${tx ? `?tx=${tx}` : ""}`;

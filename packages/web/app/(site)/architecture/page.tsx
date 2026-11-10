@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Code, Container, CtaBand, PageHero } from "@/components/site/blocks";
 
-export const metadata: Metadata = { title: "Architecture" };
+export const metadata: Metadata = { title: "Architecture", description: "Alkahest owns the money, GenLayer owns the judgment. Plan A on GenLayer, Plan B on Base Sepolia." };
 
 const BOUNDARY = [
   ["Alkahest (Arkhai)", "EVM", "The money, the delivery attestation, the decision record, EAS"],

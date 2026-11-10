@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AppealArt, EscrowArt, HeroPixels, JuryArt, VerdictArt } from "@/components/site/art";
 import { Code, Container, CtaBand, FeatureCard, LinkCard, SectionHead, Strong } from "@/components/site/blocks";
 import { Chevron, IconBot, IconPen, IconTarget, IconTerminal } from "@/components/site/icons";
-import { liveStats, recentCases } from "@/lib/read";
+import { liveStats, recentCases, verdictHref } from "@/lib/read";
 
 export const revalidate = 30;
 
@@ -203,14 +203,14 @@ Case opened and ACCEPTED.
           ) : (
             <div className="-mx-5 flex snap-x gap-4 overflow-x-auto px-5 pb-2 sm:mx-0 sm:px-0">
               {cases.map(({ id, c }) => (
-                <article key={id} className="card w-[20rem] shrink-0 snap-start p-6">
+                <Link key={id} href={verdictHref(id)} className="card card-hover w-[20rem] shrink-0 snap-start p-6">
                   <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${c?.fulfilled ? "bg-[#e7f6ee] text-pass" : "bg-[#fdecea] text-fail"}`}>
                     {c ? (c.fulfilled ? "Fulfilled" : "Not fulfilled") : "Pending"}
                   </span>
                   <h3 className="mt-4 line-clamp-3 font-medium text-ink">{c?.demand ?? id}</h3>
                   <p className="mt-3 line-clamp-3 text-sm text-muted">{c?.reason}</p>
                   <p className="mt-5 truncate font-mono text-xs text-faint">{id}</p>
-                </article>
+                </Link>
               ))}
             </div>
           )}

@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { Container, CtaBand, PageHero } from "@/components/site/blocks";
 import { IconBot, IconDoc, IconPen, IconTarget } from "@/components/site/icons";
 
-export const metadata: Metadata = { title: "Use cases" };
+export const metadata: Metadata = { title: "Use cases", description: "Agent work, content, bounties and milestones: deals a validator jury can judge." };
 
 const CASES: { id: string; icon: ReactNode; title: string; lede: string; demand: string; rubric: string; why: string[] }[] = [
   {
