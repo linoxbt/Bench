@@ -61,3 +61,17 @@ describe("parseExpiry", () => {
     expect(() => parseExpiry("soon", now)).toThrow(/Can't read expiry/);
   });
 });
+
+import { modelLabel } from "../src/judge.js";
+describe("modelLabel", () => {
+  it("turns network model ids into readable names", () => {
+    expect(modelLabel("policy:prd-gpt-5-4")).toBe("GPT-5.4");
+    expect(modelLabel("policy:prd-gemini")).toBe("Gemini");
+    expect(modelLabel("anthropic/claude-sonnet-4.6")).toBe("Claude Sonnet 4.6");
+    expect(modelLabel("Anthropic/Claude Sonnet 4.6")).toBe("Claude Sonnet 4.6");
+    expect(modelLabel("policy:prd-glm")).toBe("GLM");
+    expect(modelLabel("policy:prd-minimax")).toBe("MiniMax");
+    expect(modelLabel("openai/gpt-oss-120b")).toBe("GPT OSS 120b");
+    expect(modelLabel(undefined)).toBeUndefined();
+  });
+});

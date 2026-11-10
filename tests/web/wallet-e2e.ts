@@ -68,7 +68,15 @@ async function main() {
   }
 
   const browser = await chromium.launch();
-  const page = await browser.newPage({ viewport: { width: 1360, height: 900 } });
+  // RECORD_DIR=<dir> records the run as video (1280×720) with short pauses, e.g. as footage for the demo video.
+  const record = process.env.RECORD_DIR;
+  const context = await browser.newContext(
+    record
+      ? { viewport: { width: 1280, height: 720 }, recordVideo: { dir: record, size: { width: 1280, height: 720 } } }
+      : { viewport: { width: 1360, height: 900 } },
+  );
+  if (record) await context.addInitScript(() => localStorage.setItem("bench-announcement-v1", "1"));
+  const page = await context.newPage();
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   // The injected test wallet: EIP-6963 announcement + an EIP-1193 provider that forwards to the local node.
@@ -101,6 +109,7 @@ async function main() {
 
   const base = `http://127.0.0.1:${PORT}`;
   const step = async (name: string) => {
+    if (record) await page.waitForTimeout(1800);
     await page.screenshot({ path: join(shots, `${name}.png`) });
     console.log(`  ✓ ${name}`);
   };
@@ -167,6 +176,7 @@ async function main() {
     console.error("page text at failure:\n" + (await page.innerText("main").catch(() => "")).slice(0, 1500));
     throw e;
   } finally {
+    await context.close(); // flushes the video when recording
     await browser.close();
     if (server.pid) process.kill(-server.pid, "SIGTERM");
     await stopNode();

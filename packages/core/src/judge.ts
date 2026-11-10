@@ -126,12 +126,20 @@ export type Jury = {
   executionResult?: string;
 };
 
-/** "policy:prd-gpt-5-4" → "GPT-5.4", "policy:prd-gemini" → "Gemini". */
+/** Readable model names: "policy:prd-gpt-5-4" → "GPT-5.4", "anthropic/claude-sonnet-4.6" → "Claude Sonnet 4.6", "glm" → "GLM". */
 export function modelLabel(raw: unknown): string | undefined {
   if (typeof raw !== "string" || !raw) return undefined;
-  const name = raw.replace(/^policy:/, "").replace(/^prd-/, "");
-  const known: Record<string, string> = { "gpt-5-4": "GPT-5.4", gemini: "Gemini", gemma: "Gemma", minimax: "MiniMax", claude: "Claude", llama: "Llama", qwen: "Qwen", deepseek: "DeepSeek" };
-  return known[name] ?? name.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  let name = raw.replace(/^policy:/, "").replace(/^prd-/, "");
+  name = name.slice(name.lastIndexOf("/") + 1); // drop "provider/"
+  const known: Record<string, string> = { "gpt-5-4": "GPT-5.4", minimax: "MiniMax", deepseek: "DeepSeek", glm: "GLM", gpt: "GPT", qwen: "Qwen", llm: "LLM" };
+  if (known[name.toLowerCase()]) return known[name.toLowerCase()];
+  const ACRONYMS = new Set(["gpt", "glm", "llm", "oss", "it"]);
+  return name
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((w) => (ACRONYMS.has(w.toLowerCase()) ? w.toUpperCase() : /^\d/.test(w) ? w : (known[w.toLowerCase()] ?? w[0]!.toUpperCase() + w.slice(1))))
+    .join(" ")
+    .replace(/^GPT (\d)/, "GPT-$1");
 }
 
 type RawNode = { vote?: string; node_config?: { address?: string; model?: string; primary_model?: { model?: string } | string } };
