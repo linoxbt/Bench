@@ -24,36 +24,34 @@ pnpm bench escrow --demand "Landing copy under 60 words that mentions the free t
 
 Then follow the [agent skill](skill/bench/SKILL.md): `deliver` → `judge` → `status --wait` → `collect` / `reclaim`.
 
-## Status (Nov 9, 2026)
+## Status (Nov 12, 2026)
 
-**Live:** **https://bench-ivory.vercel.app**: landing page, How it works, Use cases, Trust model, Architecture, Developers, Case explorer, Status and
-FAQ, plus the app pages (Preview a verdict, Lock an escrow, Deliver work, Open a case). **Connect wallet** works with any browser
-wallet (EIP-6963 discovery: MetaMask, Coinbase Wallet, Rabby, …), adds/switches to GenLayer Bradbury, shows GEN and bUSD balances,
-mints test bUSD, and signs every step: lock, deliver (commit-reveal), open the case on BenchJudge, collect or reclaim.
-WalletConnect (Reown) adds a QR option for phone wallets; its project ID is set in Vercel, not in the repo. It reads the Studionet sandbox until a Bradbury BenchJudge exists, and
-`/preview` runs real validators.
+**Live on Testnet Bradbury:** **https://bench-ivory.vercel.app** reads BenchJudge on Bradbury. Connect any browser wallet
+(EIP-6963 discovery: MetaMask, Coinbase Wallet, Rabby, …, or WalletConnect's QR via Reown), add/switch to GenLayer Bradbury, mint
+test bUSD, then lock, deliver (commit-reveal), open the case on BenchJudge, and collect or reclaim, all signed in your wallet.
+`/preview` runs real validators for free on the Studionet sandbox.
 
 | Piece | State |
 | --- | --- |
-| BenchJudge on **Studionet** | Deployed: `0x991Cf014F556D779c0Da83867B0900d88Fe2C4e7` ([deployments/studionet.json](deployments/studionet.json)) |
-| BenchJudgeB (Plan B) on **Studionet** | Deployed: `0x6E7aB064add7eE67Ba1cEd35BC496293c65515f0`, reading Base Sepolia ([deployments/plan-b-studionet.json](deployments/plan-b-studionet.json)) |
-| Integration tests, real validators (Studionet) | **5/5 pass**: clear pass, clear fail, URL delivery (validators render the hosted page), prompt injection, preview-id reuse |
-| `contracts/*.py` | Lint clean; **30** direct-mode tests (Plan A `judge()` against an in-memory Alkahest, Plan B over a fake JSON-RPC) |
-| `packages/*` | **8** unit + **13** local-chain tests on **Alkahest's real bytecode**: lifecycle, browser calls, CLI, relayer, bridge receiver |
+| Alkahest on GenLayer Chain (4221) | Deployed by us ([deployments/alkahest-bradbury.json](deployments/alkahest-bradbury.json)); the published addresses had no code |
+| Day 1 gate (EVM read + write from GenVM) | **Passed.** `ArbitrationMade` landed with `oracle ==` the probe contract `0x0a97B54f…c74B`, finalized in ~2 min |
+| BenchJudge on **Bradbury** (GenVM v0.3) | `0x9fe245f3De72685EAe6d4b36747E4BA3BC1360d9` ([deployments/bradbury.json](deployments/bradbury.json)) |
+| BenchUSD on GenLayer Chain | `0xbf977ee6d7299d32ae96d2d29e784b7455e898b9` |
+| Bradbury end-to-end (`BENCH_E2E=1 pnpm e2e`) | **3/3 pass**: clear pass (verdict lands, seller collects), clear fail (collect reverts, buyer reclaims after expiry), prompt injection (rejected). Every verdict on chain matches the one on Alkahest |
+| BenchJudge on **Studionet** (preview sandbox, GenVM v0.2) | `0x991Cf014F556D779c0Da83867B0900d88Fe2C4e7` ([deployments/studionet.json](deployments/studionet.json)) |
+| BenchJudgeB (Plan B) on **Studionet** | `0x6E7aB064add7eE67Ba1cEd35BC496293c65515f0`, reading Base Sepolia ([deployments/plan-b-studionet.json](deployments/plan-b-studionet.json)) |
+| Integration tests, real validators (Studionet) | **5/5 pass**: clear pass, clear fail, URL delivery, prompt injection, preview-id reuse |
+| `contracts/*.py` | Lint clean; **22** v0.3 direct-mode tests (BenchJudge vs an in-memory Alkahest) + **8** v0.2 (Plan B over a fake JSON-RPC) |
+| `packages/*` | Unit tests + **14** local-chain tests on **Alkahest's real bytecode**; Playwright wallet flow in Chromium |
 | `contracts/evm` | BenchUSD + BenchBridgeReceiver; **4** Foundry tests |
-| Alkahest on GenLayer Chain (4221) | **Not deployed**: the published addresses have no code (`pnpm gate`). `pnpm deploy:alkahest` fixes it (tested locally) |
-| Bradbury: BenchJudge, gate probe, e2e | **Blocked on GEN.** The faucet needs a GitHub sign-in (account > 3 months) and 0.01 ETH on Ethereum mainnet at the claiming address |
-| Base Sepolia: funded Plan B run | **Blocked on Base Sepolia ETH** for the buyer, seller and relayer keys |
-| Studionet EVM interop | Not available: an EVM call from GenVM hits the 600 s leader timeout, so the Day 1 probe must run on Bradbury |
-
-To finish: fund the keys in `.env` (addresses are printed in it), then run Deploy steps 2-6 and `BENCH_E2E=1 pnpm e2e`.
+| Base Sepolia: funded Plan B run | Not run: Plan B is the fallback and the Day 1 gate passed, so Plan A is the shipped path |
 
 ## Deploy (Plan A, all on GenLayer Testnet Bradbury)
 
 1. **Keys and gas.** Three testnet EVM keys (buyer, seller, deployer). Claim GEN for each at
    [testnet-faucet.genlayer.foundation](https://testnet-faucet.genlayer.foundation) (100 GEN / 24 h, manual Cloudflare check).
 2. **Day 1 gate, part 1:** `pnpm gate`. It checks chain 4221 and that Alkahest has code there.
-   It fails today, so: `DEPLOYER_KEY=... pnpm deploy:alkahest` (deploys EAS, the arbiters and the obligations from
+   The published addresses had no code, so we ran `DEPLOYER_KEY=... pnpm deploy:alkahest` (deploys EAS, the arbiters and the obligations from
    alkahest-ts's bundled bytecode and regenerates `packages/core/src/alkahest-bradbury.ts`). Then `pnpm build && pnpm gate`.
 3. **Day 1 gate, part 2:** `GENLAYER_KEY=... pnpm gate:probe`. It deploys `contracts/probe/gate_probe.py`, makes one EVM read and
    one `arbitrate` write from GenVM, waits for finality and checks that `ArbitrationMade` landed with `oracle ==` the probe's own address.
