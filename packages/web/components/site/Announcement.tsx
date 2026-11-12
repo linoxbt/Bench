@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Chevron, Close } from "./icons";
 
-const KEY = "bench-announcement-v1";
+const KEY = "bench-announcement-v2";
 
 export function Announcement() {
   const [hidden, setHidden] = useState(true);
@@ -13,12 +13,12 @@ export function Announcement() {
     <div className="relative bg-wash text-sm">
       <div className="mx-auto flex max-w-[1200px] items-center justify-center gap-3 px-12 py-2.5 text-center">
         <span className="text-ink">
-          <span className="hidden sm:inline">The jury is live on GenLayer Studionet.</span>
-          <span className="sm:hidden">The jury is live.</span>
+          <span className="hidden sm:inline">Live on GenLayer Testnet Bradbury: real escrows, a real validator jury.</span>
+          <span className="sm:hidden">Live on Bradbury.</span>
         </span>
         <span className="hidden text-line sm:inline">|</span>
-        <Link href="/preview" className="inline-flex items-center gap-1 font-medium text-blue">
-          Ask it now <Chevron className="h-3 w-3" />
+        <Link href="/new" className="inline-flex items-center gap-1 font-medium text-blue">
+          Lock an escrow <Chevron className="h-3 w-3" />
         </Link>
       </div>
       <button

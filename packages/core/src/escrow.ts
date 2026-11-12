@@ -15,7 +15,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { BENCH_PLAN, escrowChain } from "./chains.js";
 import { ALKAHEST_BASE_SEPOLIA, ALKAHEST_BRADBURY, BENCH_JUDGE } from "./addresses.js";
 import { decodeOracleDemand, encodeBenchDemand, type BenchDemand } from "./demand.js";
-import { revealWhenReady } from "./lite.js";
+import { findArbitration, revealWhenReady } from "./lite.js";
 
 export type BenchWallet = WalletClient<Transport, Chain, Account>;
 
@@ -126,6 +126,8 @@ export type EscrowInfo = {
   oracle: Address;
   demandData: Hex;
   expirationTime: bigint;
+  /** When the escrow was created (EAS attestation time, unix seconds). */
+  createdAt: bigint;
   revoked: boolean;
 };
 
@@ -143,6 +145,7 @@ export async function getEscrow(wallet: BenchWallet, escrowUid: Hex, cfg: BenchC
     oracle,
     demandData: data,
     expirationTime: escrow.expirationTime,
+    createdAt: escrow.time,
     revoked: escrow.revocationTime !== 0n,
   };
 }
@@ -171,13 +174,9 @@ export type Arbitration = { decision: boolean; oracle: Address } | undefined;
 
 /** The verdict BenchJudge sent to Alkahest, if it has landed (after GenLayer finality). */
 export async function getArbitration(wallet: BenchWallet, escrowUid: Hex, fulfillmentUid: Hex, cfg: BenchConfig = defaultConfig()): Promise<Arbitration> {
-  const { oracle, demandData } = await getEscrow(wallet, escrowUid, cfg);
-  const found = await alkahest(wallet, cfg).arbiters.general.trustedOracle.checkExistingArbitration(
-    fulfillmentUid,
-    oracle,
-    demandData,
-  );
-  return found ? { decision: found.decision, oracle: found.oracle } : undefined;
+  const { oracle, demandData, createdAt } = await getEscrow(wallet, escrowUid, cfg);
+  // A verdict can only follow the escrow, so scan from its creation (a full-chain scan takes seconds on Bradbury).
+  return findArbitration(alkahest(wallet, cfg).viemClient, cfg.addresses.trustedOracleArbiter, fulfillmentUid, oracle, demandData, createdAt);
 }
 
 /** Wait until BenchJudge's arbitrate() lands on Alkahest, or time out. */

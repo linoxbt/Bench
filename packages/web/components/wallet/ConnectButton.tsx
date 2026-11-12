@@ -105,7 +105,7 @@ function AccountMenu({ onClose, align }: { onClose: () => void; align: "left" | 
         args: [w.address!, parseUnits("100", token?.decimals ?? 18)],
       });
       await publicClient.waitForTransactionReceipt({ hash });
-      setMsg({ text: `Minted 100 ${token?.symbol ?? "tokens"}.`, href: txUrl(hash) });
+      setMsg({ text: `Minted 100 ${token?.symbol ?? "bUSD"}.`, href: txUrl(hash) });
       refresh();
     } catch (e) {
       setMsg({ text: errorText(e), bad: true });

@@ -145,7 +145,7 @@ export function Header() {
                   <ConnectButton full />
                 </div>
                 <div className="rounded-2xl bg-blue p-6 text-white">
-                  <p className="text-sm text-white/75">Live on Studionet</p>
+                  <p className="text-sm text-white/75">Free preview · Studionet</p>
                   <p className="mt-2 text-xl font-medium leading-snug">Ask a real validator jury about any demand and delivery.</p>
                   <Link href="/preview" className="pill pill-invert pill-sm mt-5" onClick={() => setOpen(false)}>
                     Try the jury

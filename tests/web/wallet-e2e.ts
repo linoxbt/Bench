@@ -75,7 +75,7 @@ async function main() {
       ? { viewport: { width: 1280, height: 720 }, recordVideo: { dir: record, size: { width: 1280, height: 720 } } }
       : { viewport: { width: 1360, height: 900 } },
   );
-  if (record) await context.addInitScript(() => localStorage.setItem("bench-announcement-v1", "1"));
+  if (record) await context.addInitScript(() => localStorage.setItem("bench-announcement-v2", "1"));
   const page = await context.newPage();
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));

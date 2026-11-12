@@ -67,7 +67,7 @@ export function Strong({ children }: { children: ReactNode }) {
 
 export function CtaBand({
   title = "Start judging with Bench.",
-  lede = "Lock an escrow, deliver against it, and let a validator jury decide. Free on Studionet.",
+  lede = "Lock an escrow, deliver against it, and let a validator jury decide. Live on Testnet Bradbury; previews are free.",
 }: {
   title?: string;
   lede?: string;

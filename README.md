@@ -37,6 +37,7 @@ test bUSD, then lock, deliver (commit-reveal), open the case on BenchJudge, and 
 | Day 1 gate (EVM read + write from GenVM) | **Passed.** `ArbitrationMade` landed with `oracle ==` the probe contract `0x0a97B54f…c74B`, finalized in ~2 min |
 | BenchJudge on **Bradbury** (GenVM v0.3) | `0x9fe245f3De72685EAe6d4b36747E4BA3BC1360d9` ([deployments/bradbury.json](deployments/bradbury.json)) |
 | BenchUSD on GenLayer Chain | `0xbf977ee6d7299d32ae96d2d29e784b7455e898b9` |
+| Live site, browser (`pnpm test:web:live`) | **Pass** on bench-ivory.vercel.app: connect → mint → lock → deliver → open the case (fee deposit) → verdict lands → collect, in 3 min |
 | Bradbury end-to-end (`BENCH_E2E=1 pnpm e2e`) | **3/3 pass**: clear pass (verdict lands, seller collects), clear fail (collect reverts, buyer reclaims after expiry), prompt injection (rejected). Every verdict on chain matches the one on Alkahest |
 | BenchJudge on **Studionet** (preview sandbox, GenVM v0.2) | `0x991Cf014F556D779c0Da83867B0900d88Fe2C4e7` ([deployments/studionet.json](deployments/studionet.json)) |
 | BenchJudgeB (Plan B) on **Studionet** | `0x6E7aB064add7eE67Ba1cEd35BC496293c65515f0`, reading Base Sepolia ([deployments/plan-b-studionet.json](deployments/plan-b-studionet.json)) |
@@ -146,6 +147,7 @@ pnpm test:local                          # 14 tests on Alkahest bytecode: lifecy
 pytest tests/integration -p gltest --network studionet    # real validators; accounts come from .env
 BENCH_E2E=1 pnpm e2e                     # manual: full Bradbury runs (each waits for finality; the fail case waits out a 20 min expiry)
 pnpm test:web                            # browser: connect wallet → mint → lock → deliver → verdict → collect, on a local chain
+pnpm test:web:live                       # the same in Chromium against the deployed site on Bradbury: real jury, real payout (~3 min, ~0.1 GEN)
 ```
 
 CI runs both lint + direct-test toolchains, typechecks, the unit and local-chain tests, Foundry, and the browser wallet flow on every push.
@@ -192,6 +194,10 @@ calldata, so:
   "disagree" and the transaction went UNDETERMINED. Both contracts now agree on identical failures so bad cases revert cleanly.
 - **Studionet has no EVM interop**: an EVM view from GenVM runs until the 600 s leader timeout. Bradbury has it: the Day 1 probe
   read EAS and wrote `arbitrate` from GenVM, and the write landed with `oracle ==` the contract, finalized in about 2 minutes.
+- **Every GenVM read on Bradbury takes ~6 s**, whatever the read options. The site caches decided cases (they can't change),
+  and verdict lookups scan Alkahest's events only from the escrow's creation block instead of the whole chain (7 s → under 1 s).
+- **Browser wallets drop revert reasons.** The seller's reveal is simulated against the public RPC first (with Alkahest's error
+  ABI), so a too-early reveal is recognised and retried instead of surfacing as "doObligation reverted".
 - **Receipts carry votes, not model names**, so the jury panel shows validator addresses and votes and never invents model badges.
 
 ## License

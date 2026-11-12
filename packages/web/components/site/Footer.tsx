@@ -19,7 +19,7 @@ export function Footer() {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue opacity-40" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-blue" />
               </span>
-              Studionet jury live
+              Live on Testnet Bradbury
             </Link>
             <p className="max-w-[16rem] text-sm text-muted">The neutral judge for natural-language escrows.</p>
             <a href={PUBLIC.repo} target="_blank" rel="noreferrer" aria-label="GitHub" className="inline-flex text-muted hover:text-ink">

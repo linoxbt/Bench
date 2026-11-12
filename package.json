@@ -27,7 +27,8 @@
     "deploy:alkahest": "tsx scripts/deploy-alkahest.ts",
     "deploy:judge-b": "tsx scripts/deploy-judge-b.ts",
     "relayer": "pnpm -F @bench/relayer build && node packages/relayer/dist/main.js",
-    "test:web": "pnpm -F @bench/core build && tsx tests/web/wallet-e2e.ts"
+    "test:web": "pnpm -F @bench/core build && tsx tests/web/wallet-e2e.ts",
+    "test:web:live": "tsx tests/web/live-bradbury.ts"
   },
   "devDependencies": {
     "@types/node": "22.20.5",

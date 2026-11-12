@@ -2,7 +2,7 @@
  * Wallet-side Alkahest calls with plain viem, for the browser: alkahest-ts bundles @viem/anvil (Node-only)
  * and ~15 MB of artifacts. ABIs match Alkahest's ERC20EscrowObligation and EAS (checked by tests/local/lite.test.ts).
  */
-import { keccak256, parseAbi, parseEventLogs, toHex, type Account, type Address, type Chain, type Hex, type PublicClient, type Transport, type WalletClient } from "viem";
+import { encodePacked, keccak256, parseAbi, parseAbiItem, parseEventLogs, toHex, type Account, type Address, type Chain, type Hex, type PublicClient, type Transport, type WalletClient } from "viem";
 import { decodeNlaDemand, decodeOracleDemand, encodeBenchDemand, type BenchDemand } from "./demand.js";
 
 export const ESCROW_ABI = parseAbi([
@@ -30,6 +30,15 @@ export const COMMIT_REVEAL_ABI = parseAbi([
   "function commit(bytes32 commitment, uint256 commitDeadline) payable",
   "function doObligation((bytes payload, bytes32 salt, bytes32 schema) data, bytes32 refUID) returns (bytes32)",
   "function commitmentClaimed(bytes32) view returns (bool)",
+  // CommitRevealObligation's errors, so a revert reads "CommitmentTooRecent" instead of "reverted".
+  "error CommitmentMissing(bytes32 commitment, address claimer)",
+  "error CommitmentTooRecent(bytes32 commitment, address claimer)",
+  "error CommitmentAlreadyExists(bytes32 commitment)",
+  "error BondAlreadyClaimed(bytes32 commitment)",
+  "error EmptyCommitment()",
+  "error ZeroBondAmount()",
+  "error RevealTooLate(bytes32 commitment)",
+  "error UnauthorizedReveal(address caller, address committer, address recipient)",
 ]);
 
 export type LiteAddresses = {
@@ -99,9 +108,13 @@ export async function deliverLite(
   const commitHash = await wallet.writeContract({ address: cr, abi: COMMIT_REVEAL_ABI, functionName: "commit", args: [commitment, 3600n], value: 1n });
   const committed = await pub.waitForTransactionReceipt({ hash: commitHash });
   onStep?.("wait");
-  const revealHash = await revealWhenReady(pub, committed.blockNumber, () => {
+  const reveal = { address: cr, abi: COMMIT_REVEAL_ABI, functionName: "doObligation", args: [data, escrowUid] } as const;
+  const revealHash = await revealWhenReady(pub, committed.blockNumber, async () => {
+    // Simulate against the public RPC first: it returns the revert reason (wallets often drop it), and the
+    // wallet is only asked to sign once the reveal would succeed.
+    await pub.simulateContract({ ...reveal, account: wallet.account.address });
     onStep?.("reveal");
-    return wallet.writeContract({ address: cr, abi: COMMIT_REVEAL_ABI, functionName: "doObligation", args: [data, escrowUid] });
+    return wallet.writeContract(reveal);
   });
   const receipt = await pub.waitForTransactionReceipt({ hash: revealHash });
   const [attested] = parseEventLogs({ abi: EAS_EVENTS, logs: receipt.logs, eventName: "Attested" });
@@ -135,6 +148,51 @@ export async function revealWhenReady<T>(
       await new Promise((r) => setTimeout(r, 2000));
     }
   }
+}
+
+/**
+ * The earliest block worth scanning for events after `timestamp`: a block at or before it. Bradbury makes
+ * several blocks per second, so a full-range log scan takes seconds and grows with the chain; this estimates
+ * the block from the recent block rate (about 3 getBlock calls) and steps back until it is early enough.
+ */
+export async function blockAtOrBefore(pub: Pick<PublicClient, "getBlock">, timestamp: bigint): Promise<bigint> {
+  const head = await pub.getBlock({ blockTag: "latest" });
+  if (head.timestamp <= timestamp) return head.number;
+  const span = head.number < 10_000n ? head.number : 10_000n;
+  if (span === 0n) return 0n;
+  const ref = await pub.getBlock({ blockNumber: head.number - span });
+  const perSecond = Number(span) / Math.max(1, Number(head.timestamp - ref.timestamp));
+  let back = BigInt(Math.ceil(Number(head.timestamp - timestamp) * perSecond * 1.1)) + 100n;
+  for (;;) {
+    if (back >= head.number) return 0n;
+    const b = await pub.getBlock({ blockNumber: head.number - back });
+    if (b.timestamp <= timestamp) return b.number;
+    back *= 2n;
+  }
+}
+
+const ARBITRATION_MADE = parseAbiItem(
+  "event ArbitrationMade(bytes32 indexed decisionKey, bytes32 indexed fulfillmentUid, address indexed oracle, bool decision)",
+);
+
+/**
+ * The oracle's latest decision on a delivery, from TrustedOracleArbiter's ArbitrationMade events (its decision map
+ * is private, and a stored `false` looks like "not decided"). `since` (unix seconds, e.g. the escrow's creation)
+ * bounds the scan; without it the whole chain is scanned.
+ */
+export async function findArbitration(
+  pub: Pick<PublicClient, "getBlock" | "getLogs">,
+  arbiter: Address,
+  fulfillmentUid: Hex,
+  oracle: Address,
+  demandData: Hex,
+  since?: bigint,
+): Promise<{ decision: boolean; oracle: Address } | undefined> {
+  const decisionKey = keccak256(encodePacked(["bytes32", "bytes"], [fulfillmentUid, demandData]));
+  const fromBlock = since === undefined ? 0n : await blockAtOrBefore(pub, since);
+  const logs = await pub.getLogs({ address: arbiter, event: ARBITRATION_MADE, args: { decisionKey, fulfillmentUid, oracle }, fromBlock });
+  const last = logs.at(-1);
+  return last ? { decision: Boolean(last.args.decision), oracle } : undefined;
 }
 
 export type EscrowView = {

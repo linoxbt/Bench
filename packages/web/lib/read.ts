@@ -21,6 +21,23 @@ import { PUBLIC } from "./config";
 const reader = () => walletFromKey(generatePrivateKey());
 const cfg = (): BenchConfig => ({ addresses: PUBLIC.alkahest, judge: PUBLIC.judge! });
 
+/**
+ * Decided cases never change (BenchJudge refuses to judge a delivery twice), and every GenVM read on Bradbury
+ * costs ~6 s, so each server instance keeps the ones it has seen. Undecided lookups are never cached.
+ */
+const decided = new Map<string, Case>();
+async function cachedCase(gl: ReturnType<typeof genlayer>, id: string, judge: Hex): Promise<Case | undefined> {
+  const key = `${gl.network}:${judge}:${id}`.toLowerCase();
+  const hit = decided.get(key);
+  if (hit) return hit;
+  const c = await getCase(gl, id, judge);
+  if (c && (c.status === "decided" || c.status === "preview")) {
+    if (decided.size > 1000) decided.delete(decided.keys().next().value!);
+    decided.set(key, c);
+  }
+  return c;
+}
+
 async function settle<T>(p: Promise<T>): Promise<{ ok: T } | { err: string }> {
   try {
     return { ok: await p };
@@ -41,7 +58,7 @@ export async function readCase(escrowUid: Hex, fulfillmentUid: Hex, tx?: Hex): P
   const w = reader();
   const [escrow, verdict, arbitration, jury] = await Promise.all([
     settle(getEscrow(w, escrowUid, cfg())),
-    settle(getCase(gl, fulfillmentUid, PUBLIC.judge)),
+    settle(cachedCase(gl, fulfillmentUid, PUBLIC.judge!)),
     settle(getArbitration(w, escrowUid, fulfillmentUid, cfg())),
     tx ? settle(getTx(gl, tx).then(juryFromTx)) : Promise.resolve(undefined),
   ]);
@@ -57,7 +74,7 @@ export async function recentCases(limit = 8): Promise<{ id: string; c?: Case }[]
     (async () => {
       const total = Number(await gl.client.readContract({ address: judge, functionName: "case_count", args: [] }));
       const ids = await listCases(gl, Math.max(0, total - limit), limit, judge);
-      return Promise.all(ids.reverse().map(async (id) => ({ id, c: await getCase(gl, id, judge).catch(() => undefined) })));
+      return Promise.all(ids.reverse().map(async (id) => ({ id, c: await cachedCase(gl, id, judge).catch(() => undefined) })));
     })(),
   );
   return "ok" in r ? r.ok : [];
@@ -88,7 +105,7 @@ export async function readVerdict(id: string, tx?: Hex): Promise<VerdictView> {
   if (!judge) return { id, network, verdict: { err: "No BenchJudge is configured for this network." } };
   const gl = genlayer({ network });
   const [verdict, jury] = await Promise.all([
-    settle(getCase(gl, id, judge)),
+    settle(cachedCase(gl, id, judge)),
     tx ? settle(getTx(gl, tx).then(juryFromTx)) : Promise.resolve(undefined),
   ]);
   return { id, network, judge, verdict, jury };
