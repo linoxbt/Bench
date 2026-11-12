@@ -15,6 +15,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { BENCH_PLAN, escrowChain } from "./chains.js";
 import { ALKAHEST_BASE_SEPOLIA, ALKAHEST_BRADBURY, BENCH_JUDGE } from "./addresses.js";
 import { decodeOracleDemand, encodeBenchDemand, type BenchDemand } from "./demand.js";
+import { revealWhenReady } from "./lite.js";
 
 export type BenchWallet = WalletClient<Transport, Chain, Account>;
 
@@ -97,17 +98,10 @@ export async function fulfill(wallet: BenchWallet, escrowUid: Hex, delivery: str
   // CommitRevealObligation rejects a reveal in the same block as its commit (CommitmentTooRecent),
   // and doObligation is simulated against the latest block, so wait for a newer one first.
   const committed = await client.viemClient.waitForTransactionReceipt({ hash: commitHash });
-  await waitForBlockAfter(client, committed.blockNumber);
-  const { hash: revealHash, attested } = await client.commitReveal.doObligation(data, escrowUid);
+  const { hash: revealHash, attested } = await revealWhenReady(client.viemClient, committed.blockNumber, () =>
+    client.commitReveal.doObligation(data, escrowUid),
+  );
   return { fulfillmentUid: attested.uid as Hex, commitment, commitHash, revealHash };
-}
-
-async function waitForBlockAfter(client: AlkahestClient, block: bigint, timeoutMs = 120_000): Promise<void> {
-  const start = Date.now();
-  while ((await client.viemClient.getBlockNumber({ cacheTime: 0 })) <= block) {
-    if (Date.now() - start > timeoutMs) throw new Error(`no new block after ${block} within ${timeoutMs / 1000}s`);
-    await new Promise((r) => setTimeout(r, 1000));
-  }
 }
 
 /** Whether the seller's commit bond has been returned or slashed. */

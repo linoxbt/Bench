@@ -1,8 +1,8 @@
 """A tiny in-memory stand-in for Alkahest on GenLayer Chain, for direct-mode tests.
 
-It answers BenchJudge's EthCall views (ERC20EscrowObligation.getObligationData,
+It answers BenchJudge's EVM views (ExternalCall in GenVM v0.3, EthCall in v0.2) (ERC20EscrowObligation.getObligationData,
 CommitRevealObligation.getObligationData, EAS.getAttestation) with real ABI encoding,
-and records EthSend messages (TrustedOracleArbiter.arbitrate) so tests can assert on them.
+and records EVM messages (EmitExternalMessage / EthSend) (TrustedOracleArbiter.arbitrate) so tests can assert on them.
 Encoding uses eth_abi, independently of the GenLayer SDK, so the tests also cross-check
 the contract's ABI shapes.
 """
@@ -111,10 +111,13 @@ class FakeAlkahest:
         def addr(a):
             return a.as_bytes if hasattr(a, "as_bytes") else bytes(a)
 
-        if "EthCall" in request:
-            r = request["EthCall"]
-            return self.eth_call(addr(r["address"]), bytes(r["calldata"]))
-        if "EthSend" in request:
-            r = request["EthSend"]
-            return self.eth_send(addr(r["address"]), bytes(r["calldata"]))
+        # GenVM v0.3 names (BenchJudge, Bradbury) first, then v0.2 (BenchJudgeB, Studionet).
+        for name in ("ExternalCall", "EthCall"):
+            if name in request:
+                r = request[name]
+                return self.eth_call(addr(r["address"]), bytes(r["calldata"]))
+        for name in ("EmitExternalMessage", "EthSend"):
+            if name in request:
+                r = request[name]
+                return self.eth_send(addr(r["address"]), bytes(r["calldata"]))
         return None

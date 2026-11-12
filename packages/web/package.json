@@ -15,7 +15,8 @@
   "dependencies": {
     "@bench/core": "workspace:*",
     "@walletconnect/ethereum-provider": "2.26.0",
-    "genlayer-js": "1.1.8",
+    "genlayer-js": "2.0.0-rc.3",
+    "genlayer-js-v02": "npm:genlayer-js@1.1.8",
     "next": "16.4.5",
     "react": "19.3.1",
     "react-dom": "19.3.1",

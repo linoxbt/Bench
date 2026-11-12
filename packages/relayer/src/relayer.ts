@@ -6,7 +6,9 @@
  * never re-sends a decision that already exists (arbitrate overwrites), and logs every send.
  */
 import { createClient } from "genlayer-js";
-import { studionet, testnetBradbury } from "genlayer-js/chains";
+import { testnetBradbury } from "genlayer-js/chains";
+import { createClient as createClientV02 } from "genlayer-js-v02";
+import { studionet } from "genlayer-js-v02/chains";
 import { TransactionHashVariant } from "genlayer-js/types";
 import {
   concat,
@@ -32,7 +34,11 @@ export interface VerdictSource {
 }
 
 export function benchJudgeBSource(address: Address, network: "studionet" | "bradbury", endpoint?: string): VerdictSource {
-  const client = createClient({ chain: network === "bradbury" ? testnetBradbury : studionet, endpoint });
+  // BenchJudgeB runs on Studionet (GenVM v0.2 calldata: genlayer-js 1.1.8); Bradbury speaks v0.3 (genlayer-js 2.x).
+  const client =
+    network === "bradbury"
+      ? createClient({ chain: testnetBradbury, endpoint: endpoint ?? "https://rpc-bradbury.genlayer.com" })
+      : (createClientV02({ chain: studionet, endpoint }) as unknown as ReturnType<typeof createClient>);
   const final = TransactionHashVariant.LATEST_FINAL; // only state from finalized transactions
   const read = (functionName: string, args: (string | number)[]) =>
     client.readContract({ address, functionName, args, transactionHashVariant: final });

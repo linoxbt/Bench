@@ -135,7 +135,7 @@ export default function NewEscrow() {
             <Card title="Before you lock">
               <ul className="space-y-3 text-sm text-muted">
                 <li>Write requirements a juror can check: length, must-mention, must-not-contain, format.</li>
-                <li>The expiry must outlast delivery, GenLayer finality (~30 min) and any appeal. Reclaim opens only after it.</li>
+                <li>The expiry must outlast delivery, GenLayer finality (minutes) and any appeal. Reclaim opens only after it.</li>
                 <li>The escrow names BenchJudge as its only oracle: no one else can release it.</li>
               </ul>
             </Card>

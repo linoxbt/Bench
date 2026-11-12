@@ -71,13 +71,17 @@ def verdict(direct_vm, fulfilled, reason="r"):
 
 
 def test_shared_helpers_identical_to_plan_a():
-    """The jury, parsing, escaping and key helpers must not drift between the two contracts."""
+    """The jury, parsing, escaping and key helpers must not drift between the two contracts.
+
+    The one allowed difference is the SDK's name for the same call: BenchJudge runs GenVM v0.3
+    (`gl.vm.run_nondet`), BenchJudgeB runs v0.2 on Studionet (`gl.vm.run_nondet_unsafe`).
+    """
     grab = lambda p: re.search(
         r"# ---- shared with bench_judge.py: begin ----(.*)# ---- shared with bench_judge.py: end ----",
         Path(p).read_text(),
         re.S,
     ).group(1)
-    assert grab("contracts/bench_judge.py") == grab(CONTRACT)
+    assert grab("contracts/bench_judge.py") == grab(CONTRACT).replace("gl.vm.run_nondet_unsafe(", "gl.vm.run_nondet(")
 
 
 def test_judge_records_verdict_and_relay_data(direct_vm, judge, alk, rpc):

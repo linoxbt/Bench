@@ -8,38 +8,52 @@ jobs:
   contract:
     name: contract (genvm-lint + direct tests)
     runs-on: ubuntu-latest
+    env:
+      # genvm-manager release that ships the runner BenchJudge pins (GenVM v0.3, Testnet Bradbury).
+      GENVM_VERSION: v0.6.0-rc13
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
-      - name: Cache the GenVM SDK that genvm-lint downloads (~200 MB)
+          cache-dependency-path: requirements*.txt
+      - name: Cache the GenVM SDKs that genvm-lint and gltest download (~300 MB each)
         uses: actions/cache@v4
         with:
           path: |
             ~/.cache/genvm-linter
             ~/.cache/gltest-direct
-          key: genvm-${{ hashFiles('requirements.txt') }}-v0.2.16-sdk-v0.2.12
-      - run: pip install -r requirements.txt
-      - name: Pin the GenVM SDK the direct tests load (v0.2.12 carries the runner the contracts pin)
-        # genlayer-test otherwise downloads the newest GenVM release, whose assets don't match (HTTP 404).
+            ~/.cache/plan-b
+          key: genvm-${{ hashFiles('requirements*.txt') }}-v0.6.0-rc13-sdk-v0.2.12
+      - name: Throwaway keys
+        # gltest.config.yaml names network accounts for the integration suite; direct mode never uses them,
+        # so each run gets fresh throwaway keys instead of secrets.
         run: |
-          mkdir -p ~/.cache/gltest-direct && cd ~/.cache/gltest-direct
+          echo "GENLAYER_KEY=0x$(python -c 'import secrets; print(secrets.token_hex(32))')" >> "$GITHUB_ENV"
+          echo "BENCH_SELLER_KEY=0x$(python -c 'import secrets; print(secrets.token_hex(32))')" >> "$GITHUB_ENV"
+
+      # BenchJudge + the Day 1 gate probe: GenVM v0.3
+      - run: pip install -r requirements.txt
+      - run: python scripts/genvm_lint.py contracts/bench_judge.py
+      - run: python scripts/genvm_lint.py contracts/probe/gate_probe.py
+      - name: Direct-mode tests (v0.3)
+        run: pytest tests/direct -p gltest -q
+
+      # Plan B's BenchJudgeB: GenVM v0.2 on Studionet, its own virtualenv and HOME-scoped SDK cache
+      - name: Plan B toolchain (v0.2)
+        run: |
+          python -m venv /tmp/planb && /tmp/planb/bin/pip install -q -r requirements-plan-b.txt
+          mkdir -p ~/.cache/plan-b/.cache/gltest-direct && cd ~/.cache/plan-b/.cache/gltest-direct
+          # genlayer-test 0.29 otherwise downloads the newest GenVM release, whose assets don't match (HTTP 404).
           if [ ! -f genvm-universal-v0.2.12.tar.xz ]; then
             curl -sSfL -o genvm-universal-v0.2.12.tar.xz https://github.com/genlayerlabs/genvm/releases/download/v0.2.12/genvm-universal.tar.xz
           fi
           echo "4f0b358ec98ec148be9b95cdfb0f0e1a6cbe64da0194fdfac3fffc6f5d1d93e2  genvm-universal-v0.2.12.tar.xz" | sha256sum -c -
-      - run: genvm-lint check contracts/bench_judge.py
-      - run: genvm-lint check contracts/bench_judge_b.py
-      - run: genvm-lint check contracts/probe/gate_probe.py
-      - name: Direct-mode tests
-        # gltest.config.yaml names network accounts for the integration suite; direct mode never uses them,
-        # so each run gets fresh throwaway keys instead of secrets.
+      - name: Plan B lint + direct-mode tests (v0.2)
         run: |
-          export GENLAYER_KEY=0x$(python -c "import secrets; print(secrets.token_hex(32))")
-          export BENCH_SELLER_KEY=0x$(python -c "import secrets; print(secrets.token_hex(32))")
-          pytest tests/direct -p gltest -q
+          env -u GENVM_VERSION HOME=$HOME/.cache/plan-b /tmp/planb/bin/genvm-lint check contracts/bench_judge_b.py
+          env -u GENVM_VERSION HOME=$HOME/.cache/plan-b /tmp/planb/bin/pytest tests/direct_b -p gltest -q
 
   typescript:
     name: typescript (typecheck, unit, local Alkahest, web build)

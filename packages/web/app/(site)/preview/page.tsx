@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
-import { createAccount, createClient, generatePrivateKey } from "genlayer-js";
-import { studionet } from "genlayer-js/chains";
-import { TransactionStatus } from "genlayer-js/types";
+// Studionet runs GenVM v0.2, whose calldata only genlayer-js 1.x speaks (installed as genlayer-js-v02).
+import { createAccount, createClient, generatePrivateKey } from "genlayer-js-v02";
+import { studionet } from "genlayer-js-v02/chains";
+import { TransactionStatus } from "genlayer-js-v02/types";
 import { LIMITS, deliveryWarnings, genvmTxUrl } from "@bench/core/browser";
 import Link from "next/link";
 import { Container } from "@/components/site/blocks";

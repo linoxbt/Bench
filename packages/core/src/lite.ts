@@ -98,18 +98,43 @@ export async function deliverLite(
   onStep?.("commit");
   const commitHash = await wallet.writeContract({ address: cr, abi: COMMIT_REVEAL_ABI, functionName: "commit", args: [commitment, 3600n], value: 1n });
   const committed = await pub.waitForTransactionReceipt({ hash: commitHash });
-  // CommitRevealObligation rejects a reveal in the commit's block (CommitmentTooRecent).
   onStep?.("wait");
-  for (let i = 0; (await pub.getBlockNumber({ cacheTime: 0 })) <= committed.blockNumber; i++) {
-    if (i > 120) throw new Error("No new block within 2 minutes; try revealing again shortly.");
-    await new Promise((r) => setTimeout(r, 1000));
-  }
-  onStep?.("reveal");
-  const revealHash = await wallet.writeContract({ address: cr, abi: COMMIT_REVEAL_ABI, functionName: "doObligation", args: [data, escrowUid] });
+  const revealHash = await revealWhenReady(pub, committed.blockNumber, () => {
+    onStep?.("reveal");
+    return wallet.writeContract({ address: cr, abi: COMMIT_REVEAL_ABI, functionName: "doObligation", args: [data, escrowUid] });
+  });
   const receipt = await pub.waitForTransactionReceipt({ hash: revealHash });
   const [attested] = parseEventLogs({ abi: EAS_EVENTS, logs: receipt.logs, eventName: "Attested" });
   if (!attested) throw new Error(`Reveal tx ${revealHash} emitted no Attested event`);
   return { fulfillmentUid: attested.args.uid, commitHash, revealHash };
+}
+
+/**
+ * CommitRevealObligation rejects a reveal unless block.number > the commit's block (CommitmentTooRecent).
+ * On Bradbury a reveal still failed that way after the head had moved on: the public RPC can serve the
+ * reveal's simulation from a node that is behind. So wait for a margin block, then retry the reveal
+ * while it is still reported too recent.
+ */
+export async function revealWhenReady<T>(
+  pub: Pick<PublicClient, "getBlockNumber">,
+  commitBlock: bigint,
+  reveal: () => Promise<T>,
+  timeoutMs = 120_000,
+): Promise<T> {
+  const start = Date.now();
+  const late = () => Date.now() - start > timeoutMs;
+  while ((await pub.getBlockNumber({ cacheTime: 0 })) <= commitBlock + 1n) {
+    if (late()) throw new Error(`No new block after ${commitBlock} within ${timeoutMs / 1000}s; reveal again shortly.`);
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  for (;;) {
+    try {
+      return await reveal();
+    } catch (e) {
+      if (late() || !String((e as Error)?.message ?? e).includes("CommitmentTooRecent")) throw e;
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
 }
 
 export type EscrowView = {

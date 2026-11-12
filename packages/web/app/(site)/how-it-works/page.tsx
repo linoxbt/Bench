@@ -84,7 +84,7 @@ export default function HowItWorks() {
         <Container className="py-20">
           <div className="grid gap-6 md:grid-cols-3">
             {[
-              ["~30 min", "Bradbury finality, then the verdict lands"],
+              ["Minutes", "Bradbury finality (about 2 min in our runs), then the verdict lands"],
               ["24 h", "Default escrow expiry: delivery + finality + appeals"],
               ["1 wei", "Seller's commit bond, returned on reveal"],
             ].map(([v, k]) => (

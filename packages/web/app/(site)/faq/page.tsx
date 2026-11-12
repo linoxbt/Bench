@@ -16,7 +16,7 @@ const GROUPS: [string, [string, string][]][] = [
   [
     "Escrows and payouts",
     [
-      ["How long until money moves?", "About 30 minutes on Bradbury: the verdict reaches Alkahest only after GenLayer finality, then the seller collects."],
+      ["How long until money moves?", "A few minutes on Bradbury (about 2 in our runs; longer if someone appeals): the verdict reaches Alkahest only after GenLayer finality, then the seller collects."],
       ["What if nobody delivers?", "The buyer reclaims after the escrow expires. Pick an expiry that outlasts delivery, finality and appeals."],
       ["Can the seller try again?", "Yes. Each delivery is judged once, on its own evidence, so a new delivery gets a new verdict."],
     ],

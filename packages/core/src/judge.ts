@@ -1,22 +1,36 @@
 import { createAccount, createClient } from "genlayer-js";
-import { studionet, testnetBradbury } from "genlayer-js/chains";
+import { testnetBradbury } from "genlayer-js/chains";
+import { createClient as createClientV02 } from "genlayer-js-v02";
+import { studionet } from "genlayer-js-v02/chains";
 import { TransactionStatus, type GenLayerTransaction } from "genlayer-js/types";
 import type { Address, Hex } from "viem";
-import { BENCH_JUDGE } from "./addresses.js";
+import { ARBITRATE_SELECTOR, feesFor } from "./fees.js";
+import { ALKAHEST_BRADBURY, BENCH_JUDGE } from "./addresses.js";
+import { BRADBURY_GENLAYER_RPC } from "./chains.js";
 
 export type Network = "bradbury" | "studionet";
 
-const chainFor = (network: Network) => (network === "bradbury" ? testnetBradbury : studionet);
-
-/** A GenLayer client. Pass a private key for writes (CLI), or nothing for read-only use (web). */
+/**
+ * A GenLayer client. Pass a private key for writes (CLI), or nothing for read-only use (web).
+ *
+ * The two networks run different GenVM versions with different calldata: Testnet Bradbury runs v0.3
+ * (genlayer-js 2.x, fee deposits), Studionet still runs v0.2 (genlayer-js 1.1.8, installed as
+ * genlayer-js-v02). Each network gets the SDK that speaks its calldata; the methods Bench uses
+ * (writeContract, readContract, getTransaction, waitForTransactionReceipt) have the same shape in both.
+ */
 export function genlayer(opts: { privateKey?: Hex; network?: Network; endpoint?: string } = {}) {
   const network = opts.network ?? "bradbury";
   const account = opts.privateKey ? createAccount(opts.privateKey) : undefined;
-  const client = createClient({ chain: chainFor(network), account, endpoint: opts.endpoint });
+  const client =
+    network === "bradbury"
+      ? createClient({ chain: testnetBradbury, account, endpoint: opts.endpoint ?? BRADBURY_GENLAYER_RPC })
+      : (createClientV02({ chain: studionet, account: account as never, endpoint: opts.endpoint }) as unknown as ReturnType<typeof createClient>);
   return { client, account, network };
 }
 
 export type GenLayer = ReturnType<typeof genlayer>;
+
+export { ARBITRATE_SELECTOR, feesFor, type EvmMessage } from "./fees.js";
 
 export type Case = {
   escrow_uid: string;
@@ -53,6 +67,7 @@ export async function openCase(gl: GenLayer, escrowUid: Hex, fulfillmentUid: Hex
     functionName: "judge",
     args: [escrowUid, fulfillmentUid],
     value: 0n,
+    fees: await feesFor(gl, [{ to: ALKAHEST_BRADBURY.trustedOracleArbiter, selector: ARBITRATE_SELECTOR }]),
   })) as Hex;
   const accepted = await gl.client.waitForTransactionReceipt({
     hash: hash as never,
@@ -74,6 +89,7 @@ export async function preview(gl: GenLayer, caseId: string, demand: string, deli
     functionName: "preview",
     args: [caseId, demand, rubric, delivery],
     value: 0n,
+    fees: await feesFor(gl),
   })) as Hex;
   const receipt = await gl.client.waitForTransactionReceipt({
     hash: hash as never,
@@ -155,8 +171,21 @@ export function juryFromTx(tx: GenLayerTransaction): Jury {
   let votes: JuryVote[];
   let leader = tx.lastLeader as string | undefined;
   if (r?.roundValidators?.length) {
-    const names = r.validatorVotesName ?? [];
-    votes = r.roundValidators.map((validator, i) => ({ validator, vote: String(names[i] ?? "NOT_VOTED") }));
+    const names = (r.validatorVotesName ?? []).map(String);
+    const hashes = (r.validatorResultHash ?? []).map((h) => String(h).toLowerCase());
+    const leaderIndex = Number(r.leaderIndex ?? 0);
+    const ZERO = "0x" + "0".repeat(64);
+    // Bradbury Phase 2 reports each validator's execution result (FINISHED_WITH_RETURN, ...), not a vote.
+    // A validator agrees when its result hash matches the leader's; a zero hash means it never revealed.
+    const byHash = names.some((n) => n.startsWith("FINISHED_WITH")) && hashes.length === r.roundValidators.length;
+    if (byHash) leader = r.roundValidators[leaderIndex] ?? leader;
+    votes = r.roundValidators.map((validator, i) => {
+      if (!byHash) return { validator, vote: String(names[i] ?? "NOT_VOTED") };
+      if (i === leaderIndex) return { validator, vote: "LEADER", leader: true };
+      const h = hashes[i];
+      return { validator, vote: !h || h === ZERO ? "NOT_VOTED" : h === hashes[leaderIndex] ? "AGREE" : "DISAGREE" };
+    });
+    votes.sort((a, b) => Number(!!b.leader) - Number(!!a.leader));
   } else if (cd?.votes) {
     const models = new Map<string, string | undefined>();
     const modelOf = (n: RawNode) => {

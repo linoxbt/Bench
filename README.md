@@ -59,15 +59,18 @@ To finish: fund the keys in `.env` (addresses are printed in it), then run Deplo
    one `arbitrate` write from GenVM, waits for finality and checks that `ArbitrationMade` landed with `oracle ==` the probe's own address.
    If it fails, Plan A is blocked: use Plan B (below) and say so in the README and video.
 4. **BenchJudge:** `GENLAYER_KEY=... pnpm deploy:judge` → `export BENCH_JUDGE=0x...` (also written to `deployments/bradbury.json`).
-   For the free `/preview` sandbox, also `BENCH_NETWORK=studionet pnpm deploy:judge`.
+   Every Bradbury transaction carries a fee deposit (about 0.1 GEN, nearly all refunded); `feesFor()` in `@bench/core` builds it,
+   including the budget for the `arbitrate` call BenchJudge emits on finality. The free `/preview` sandbox on Studionet runs the
+   GenVM v0.2 build of BenchJudge (see *GenVM versions* below).
 5. **Demo token:** `DEPLOYER_KEY=... BUYER_ADDRESS=0x... pnpm deploy:token` → `export BENCH_USD=0x...`.
 6. **Viewer on Vercel:** root directory `packages/web`, install command `pnpm install` (monorepo root), env
    `NEXT_PUBLIC_BENCH_JUDGE`, `NEXT_PUBLIC_BENCH_JUDGE_STUDIONET`, `NEXT_PUBLIC_BENCH_USD`, and optionally
    `NEXT_PUBLIC_REOWN_PROJECT_ID` (adds a WalletConnect QR option; the ID is public, so restrict it to your domains in the Reown dashboard). Put the official partner logos in
    `packages/web/public/logos/` (see the README there).
 
-**Expiry rule.** Escrows must outlast delivery + GenLayer finality (~30 min) + any appeals: 24 h is the default. Reclaim opens only
-after expiry, so for the recorded fail case use a short expiry (finality + 1–2 h) and say so on screen. An expiry of 0 disables reclaim
+**Expiry rule.** Escrows must outlast delivery + GenLayer finality + any appeals: 24 h is the default. Finality on Bradbury took
+about 2 minutes in our runs, but the appeal window can stretch it, so keep a margin. Reclaim opens only after expiry, so for the
+recorded fail case use a short expiry (20-30 min) and say so on screen. An expiry of 0 disables reclaim
 and is refused by the CLI.
 
 ## Plan B (Base Sepolia escrows)
@@ -108,9 +111,9 @@ RELAYER_KEY=0x... BENCH_JUDGE_B=0x... pnpm relayer         # B1: relays finalize
 ## Repo layout
 
 ```
-contracts/bench_judge.py        BenchJudge Intelligent Contract (GenVM, runner pinned to v0.2.16)
-contracts/bench_judge_b.py      Plan B judge: reads Base Sepolia over JSON-RPC, stores verdicts for relay
-contracts/probe/gate_probe.py   Day 1 gate probe (EVM read + write from GenVM)
+contracts/bench_judge.py        BenchJudge Intelligent Contract (GenVM v0.3, Testnet Bradbury)
+contracts/bench_judge_b.py      Plan B judge (GenVM v0.2, Studionet): reads Base Sepolia over JSON-RPC, stores verdicts for relay
+contracts/probe/gate_probe.py   Day 1 gate probe (GenVM v0.3: EVM read + write from GenVM)
 contracts/evm/                  BenchUSD demo token, BenchBridgeReceiver (B2); solc-js build, Foundry tests
 packages/core/                  chains, Alkahest addresses, NLA demand codec, escrow + BenchJudge clients
                                 (index: Node/CLI via alkahest-ts; ./browser: viem-only wallet calls)
@@ -118,9 +121,11 @@ packages/cli/                   `bench` CLI (commander, --json for agents)
 packages/web/                   Next.js site + app: every page is its own route under app/(site); /demo has no site chrome
 packages/relayer/               Plan B1 relayer service
 skill/bench/SKILL.md            installable agent skill
-scripts/                        day1-gate.sh, day1-gate-probe.ts, deploy-alkahest.ts, deploy-judge.ts, deploy-judge-b.ts
+scripts/                        day1-gate.sh, day1-gate-probe.ts, deploy-alkahest.ts, deploy-judge.ts, deploy-judge-b.ts,
+                                fund-keys.ts (split the deployer's GEN), genvm_lint.py (genvm-lint for v0.3 contracts)
 deployments/                    deployed addresses per network
-tests/direct/                   genlayer-test direct mode (mocked web + LLM + EVM)
+tests/direct/                   genlayer-test direct mode, GenVM v0.3: BenchJudge (mocked web + LLM + EVM)
+tests/direct_b/                 same for Plan B's BenchJudgeB, GenVM v0.2 (own virtualenv: requirements-plan-b.txt)
 tests/local/                    Alkahest bytecode on a Hardhat node (chain id 4221): core, browser calls, CLI
 tests/integration/              real consensus on Studionet/Bradbury (manual)
 tests/e2e/                      full Bradbury runs incl. payout and reclaim (manual, BENCH_E2E=1)
@@ -131,33 +136,64 @@ fixtures/cases/                 demo demands and deliveries (pass, fail, URL, pr
 ## Tests
 
 ```bash
-pip install -r requirements.txt
-pnpm lint:contract                       # genvm-lint: BenchJudge + gate probe
-pytest tests/direct -p gltest            # 30 tests, ~1 s after the first SDK download
+pip install -r requirements.txt          # GenVM v0.3 toolchain (BenchJudge, gate probe)
+pnpm lint:contract                       # genvm-lint against the Bradbury runner (GENVM_VERSION=v0.6.0-rc13)
+pnpm test:contract                       # 22 direct-mode tests, ~1 s after the first SDK download (~300 MB)
+# Plan B (GenVM v0.2) in its own virtualenv:
+python -m venv .venv-b && .venv-b/bin/pip install -r requirements-plan-b.txt
+.venv-b/bin/genvm-lint check contracts/bench_judge_b.py && .venv-b/bin/pytest tests/direct_b -p gltest   # 8 tests
 pnpm -F @bench/core test                 # demand codec (cross-checked against Python eth_abi bytes), limits, expiry
-pnpm test:local                          # 13 tests on Alkahest bytecode: lifecycle, CLI, relayer, bridge receiver
+pnpm test:local                          # 14 tests on Alkahest bytecode: lifecycle, CLI, relayer, bridge receiver
 (cd contracts/evm && forge test)         # BenchBridgeReceiver
 pytest tests/integration -p gltest --network studionet    # real validators; accounts come from .env
-BENCH_E2E=1 pnpm e2e                     # manual: full Bradbury runs (each waits for finality)
+BENCH_E2E=1 pnpm e2e                     # manual: full Bradbury runs (each waits for finality; the fail case waits out a 20 min expiry)
 pnpm test:web                            # browser: connect wallet → mint → lock → deliver → verdict → collect, on a local chain
 ```
 
-CI runs the lint, the direct tests, typechecks, the unit and local-chain tests and the web build on every push.
+CI runs both lint + direct-test toolchains, typechecks, the unit and local-chain tests, Foundry, and the browser wallet flow on every push.
+
+## GenVM versions
+
+Testnet Bradbury runs **GenVM v0.3**; Studionet still runs **v0.2**. They differ in the contract header, the SDK API and the
+calldata, so:
+
+| | Bradbury (v0.3) | Studionet (v0.2) |
+| --- | --- | --- |
+| Contracts | `bench_judge.py`, `probe/gate_probe.py` | `bench_judge_b.py`, the `/preview` sandbox (BenchJudge's v0.2 build, in git history) |
+| Header | `# v0.3.0` then `# { "Depends": "py-genlayer:babwp9t3…" }` | `# { "Depends": "py-genlayer:1jb45aa8…" }` |
+| SDK | `import genlayer as gl`, `gl.contract.Contract`, `gl.vm.run_nondet` | `from genlayer import *`, `gl.Contract`, `gl.vm.run_nondet_unsafe` |
+| genlayer-js | 2.0.0-rc.3 (fee deposits) | 1.1.8, installed as `genlayer-js-v02` |
+| Python tests | `requirements.txt`, `tests/direct` | `requirements-plan-b.txt`, `tests/direct_b` |
+
+`genlayer()` in `@bench/core` picks the right SDK per network, so callers don't change.
 
 ## Findings that shaped the code
 
-- **GenVM v0.2.16 EVM views are broken.** The generated view proxy reads `self.parent.address` but stores `_proxy_parent`, so every
-  `.view()` call on a `@gl.evm.contract_interface` raises `AttributeError`. It's fixed on genvm `main` but not in any release.
-  BenchJudge and the gate probe use a small `_view()` shim that adds the alias (a no-op once fixed).
-- **Commit-reveal needs a newer block.** `CommitRevealObligation` rejects a reveal in the same block as its commit
-  (`CommitmentTooRecent`), and alkahest-ts simulates the reveal against the latest block, so `fulfill()` waits for one.
+- **Bradbury moved to GenVM v0.3 and fee deposits.** v0.2 contracts deploy but always finish with an error; genlayer-js 1.x
+  transactions go to the old consensus contract and are never picked up; 2.x without fees reverts (`FeeValueMustBeNonZero`).
+  The fix was porting to the v0.3 SDK, genlayer-js 2.x and `feesFor()`.
+- **Keep the v0.3 header to exactly two comment lines.** A third comment line right under `Depends` made every deploy finish
+  with `FINISHED_WITH_ERROR` (all validators agreeing, no message). Found by bisecting deploys; documentation goes in the docstring.
+- **Two Bradbury RPCs, not interchangeable for GenVM.** `rpc.testnet-chain.genlayer.com` (genlayer-js's default) serves the EVM
+  methods only; `gen_call` reads need `rpc-bradbury.genlayer.com`. Both are chain 4221.
+- **Bradbury votes are execution results.** Receipts list each validator's result (`FINISHED_WITH_RETURN`, …), so the jury panel
+  counts a validator as agreeing when its result hash matches the leader's.
+- **genvm-linter 0.11 can't load v0.3 EVM interfaces**: it loads the SDK in docs mode, where `contract_interface` raises
+  `KeyError('return')`. `scripts/genvm_lint.py` runs the same checks with docs mode off.
+- **GenVM v0.2.16 EVM views are broken** (Plan B / Studionet). The generated view proxy reads `self.parent.address` but stores
+  `_proxy_parent`; BenchJudgeB uses a small `_view()` shim. v0.3 fixed it, so BenchJudge calls `.view()` directly.
+- **Commit-reveal needs a newer block, and Bradbury's RPC can lag.** `CommitRevealObligation` rejects a reveal unless
+  `block.number` is past the commit's block (`CommitmentTooRecent`). On Bradbury the reveal still failed after the head had moved
+  on (the simulation hit a node that was behind), so `fulfill()` and the browser's `deliverLite()` wait for a margin block and
+  retry the reveal while it is reported too recent.
 - **`requestArbitration` is seller-only.** A stranger's request reverts (`UnauthorizedArbitrationRequest`); `bench judge` sends it
   from the seller key when present and never lets it block judging.
 - **alkahest-ts can't go in a browser bundle** (it pulls in `@viem/anvil` and ~15 MB of artifacts), so the viewer uses
   `@bench/core/browser`, which makes the same calls with plain viem and is tested against the real bytecode.
 - **Validators must agree on identical errors.** Found live on Studionet: when the leader's read failed, validators voted
   "disagree" and the transaction went UNDETERMINED. Both contracts now agree on identical failures so bad cases revert cleanly.
-- **Studionet has no EVM interop**: an EVM view from GenVM runs until the 600 s leader timeout.
+- **Studionet has no EVM interop**: an EVM view from GenVM runs until the 600 s leader timeout. Bradbury has it: the Day 1 probe
+  read EAS and wrote `arbitrate` from GenVM, and the write landed with `oracle ==` the contract, finalized in about 2 minutes.
 - **Receipts carry votes, not model names**, so the jury panel shows validator addresses and votes and never invents model badges.
 
 ## License

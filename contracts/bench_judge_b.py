@@ -142,7 +142,7 @@ Respond with JSON only: {{"fulfilled": true|false, "reason": "<one sentence nami
             return False
         return mine["fulfilled"] == leaders_res.calldata["fulfilled"]
 
-    return gl.vm.run_nondet_unsafe(leader_fn, validator_fn)
+    return gl.vm.run_nondet_unsafe(leader_fn, validator_fn)  # validator errors count as disagreement
 # ---- shared with bench_judge.py: end ----
 
 
@@ -221,7 +221,7 @@ class BenchJudgeB(gl.Contract):
                 mine[name] = result_of(gl.nondet.web.post(url, body=body, headers=headers))
             return mine == leaders_res.calldata
 
-        return gl.vm.run_nondet_unsafe(leader_fn, validator_fn)
+        return gl.vm.run_nondet_unsafe(leader_fn, validator_fn)  # validator errors count as disagreement
 
     @gl.public.write
     def judge(self, escrow_uid: str, fulfillment_uid: str) -> None:

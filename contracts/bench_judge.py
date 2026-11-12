@@ -1,10 +1,20 @@
-# { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
+# v0.3.0
+# { "Depends": "py-genlayer:babwp9t37jw9g4j2bccgn14g6x7x9s1f7dsmh7emvz735pz4zxa0" }
+"""BenchJudge: a GenLayer validator jury for Arkhai Alkahest natural-language escrows.
+
+GenVM v0.3 (Testnet Bradbury). Keep the two header lines above exactly as they are: the runner
+parses the leading comment block, and any extra comment line there makes every deploy fail.
+Lint: GENVM_VERSION=v0.6.0-rc13 python scripts/genvm_lint.py contracts/bench_judge.py
+"""
 
 import json
 import re
 from dataclasses import dataclass
 
-from genlayer import *
+import genlayer as gl
+from genlayer.storage import DynArray, TreeMap
+from genlayer.storage import allow as allow_storage
+from genlayer.types import Address, u64, u256
 
 ERROR_EXPECTED = "[EXPECTED]"
 ERROR_EXTERNAL = "[EXTERNAL]"
@@ -60,20 +70,6 @@ class EAS:
 
     class Write:
         pass
-
-
-def _view(contract):
-    """`.view()` that works on the pinned SDK.
-
-    GenVM v0.2.16's generated EVM view methods read `self.parent.address`, but the view
-    proxy only stores `_proxy_parent`, so every EVM view raises AttributeError. Fixed on
-    genvm main (uses `_proxy_parent`); this shim adds the missing alias and is a no-op there.
-    """
-    proxy = contract.view()
-    cls = type(proxy)
-    if not hasattr(cls, "parent"):
-        cls.parent = property(lambda self: self._proxy_parent)
-    return proxy
 
 
 # ---- shared with bench_judge.py: begin ----
@@ -183,11 +179,11 @@ Respond with JSON only: {{"fulfilled": true|false, "reason": "<one sentence nami
             return False
         return mine["fulfilled"] == leaders_res.calldata["fulfilled"]
 
-    return gl.vm.run_nondet_unsafe(leader_fn, validator_fn)
+    return gl.vm.run_nondet(leader_fn, validator_fn)  # validator errors count as disagreement
 # ---- shared with bench_judge.py: end ----
 
 
-class BenchJudge(gl.Contract):
+class BenchJudge(gl.contract.Contract):
     arbiter: Address
     escrow_obligation: Address
     commit_reveal: Address
@@ -210,7 +206,7 @@ class BenchJudge(gl.Contract):
 
         # 1. Escrow: must use TrustedOracleArbiter with THIS contract as oracle, and still hold funds
         arbiter, demand_blob, _token, _amount = (
-            _view(ERC20EscrowObligation(self.escrow_obligation)).getObligationData(e_uid)
+            ERC20EscrowObligation(self.escrow_obligation).view().getObligationData(e_uid)
         )
         if arbiter != self.arbiter:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} escrow arbiter is not TrustedOracleArbiter")
@@ -218,18 +214,18 @@ class BenchJudge(gl.Contract):
         if oracle != gl.message.contract_address:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} escrow names a different oracle")
         _provider, _model, rubric, demand_text = gl.evm.decode(tuple[str, str, str, str], bytes(demand_data))
-        if _view(EAS(self.eas)).getAttestation(e_uid)[ATT_REVOCATION_TIME] != 0:
+        if EAS(self.eas).view().getAttestation(e_uid)[ATT_REVOCATION_TIME] != 0:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} escrow already collected or reclaimed")
 
         # 2. Fulfillment: a CommitRevealObligation that references this escrow and is not revoked
-        att = _view(EAS(self.eas)).getAttestation(f_uid)
+        att = EAS(self.eas).view().getAttestation(f_uid)
         if bytes(att[ATT_REF_UID]) != e_uid:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} fulfillment does not reference this escrow")
         if att[ATT_REVOCATION_TIME] != 0:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} fulfillment revoked")
         if att[ATT_ATTESTER] != self.commit_reveal:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} fulfillment is not a CommitRevealObligation attestation")
-        payload, _salt, _schema = _view(CommitRevealObligation(self.commit_reveal)).getObligationData(f_uid)
+        payload, _salt, _schema = CommitRevealObligation(self.commit_reveal).view().getObligationData(f_uid)
         delivery = bytes(payload).decode("utf-8", errors="replace")
 
         # 3. Jury

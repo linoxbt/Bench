@@ -15,8 +15,11 @@ importers:
         specifier: 1.1.2
         version: 1.1.2(typescript@5.9.3)(viem@2.57.17(typescript@5.9.3)(zod@3.25.76))
       genlayer-js:
-        specifier: 1.1.8
-        version: 1.1.8(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)(zod@3.25.76)
+        specifier: 2.0.0-rc.3
+        version: 2.0.0-rc.3(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)(zod@3.25.76)
+      genlayer-js-v02:
+        specifier: npm:genlayer-js@1.1.8
+        version: genlayer-js@1.1.8(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)(zod@3.25.76)
       hardhat:
         specifier: 2.29.1
         version: 2.29.1(typescript@5.9.3)
@@ -79,8 +82,11 @@ importers:
         specifier: 1.1.2
         version: 1.1.2(typescript@5.9.3)(viem@2.57.17(typescript@5.9.3)(zod@3.25.76))
       genlayer-js:
-        specifier: 1.1.8
-        version: 1.1.8(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)(zod@3.25.76)
+        specifier: 2.0.0-rc.3
+        version: 2.0.0-rc.3(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)(zod@3.25.76)
+      genlayer-js-v02:
+        specifier: npm:genlayer-js@1.1.8
+        version: genlayer-js@1.1.8(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)(zod@3.25.76)
       viem:
         specifier: 2.57.17
         version: 2.57.17(typescript@5.9.3)(zod@3.25.76)
@@ -101,8 +107,11 @@ importers:
         specifier: workspace:*
         version: link:../core
       genlayer-js:
-        specifier: 1.1.8
-        version: 1.1.8(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)(zod@3.25.76)
+        specifier: 2.0.0-rc.3
+        version: 2.0.0-rc.3(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)(zod@3.25.76)
+      genlayer-js-v02:
+        specifier: npm:genlayer-js@1.1.8
+        version: genlayer-js@1.1.8(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)(zod@3.25.76)
       viem:
         specifier: 2.57.17
         version: 2.57.17(typescript@5.9.3)(zod@3.25.76)
@@ -123,8 +132,11 @@ importers:
         specifier: 2.26.0
         version: 2.26.0(@types/react@19.3.0)(react@19.3.1)(typescript@5.9.3)(zod@3.25.76)
       genlayer-js:
-        specifier: 1.1.8
-        version: 1.1.8(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)(zod@3.25.76)
+        specifier: 2.0.0-rc.3
+        version: 2.0.0-rc.3(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)(zod@3.25.76)
+      genlayer-js-v02:
+        specifier: npm:genlayer-js@1.1.8
+        version: genlayer-js@1.1.8(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)(zod@3.25.76)
       next:
         specifier: 16.4.5
         version: 16.4.5(@types/node@22.20.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -2344,6 +2356,9 @@ packages:
 
   genlayer-js@1.1.8:
     resolution: {integrity: sha512-qlqh8oqR9Ad7FVbIdqIrHfsMPLLJ24ZRHUZ2LGMpw6DX5ySjrEWdV1X93bVIHO44cu9CLGdx8m2ubkPv78/RLg==}
+
+  genlayer-js@2.0.0-rc.3:
+    resolution: {integrity: sha512-EeiI0z7BQrapSDFod7PET4wevgQ6WNQ6KJklxnPQBVwReDPF4HT9ZiF9jDBAyUPQ1Zi00K2DnPEeXHNvpkFg+A==}
 
   get-caller-file@2.0.5:
     resolution: {integrity: sha512-DyFP3BM/3YHTQOCUL/w0OZHR0lpKeGrxotcHWcqNEdnltqFwXVfhEBQ94eIo34AfQpo0rGki4cyIiftY06h2Fg==}
@@ -7009,6 +7024,23 @@ snapshots:
   generator-function@2.0.1: {}
 
   genlayer-js@1.1.8(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)(zod@3.25.76):
+    dependencies:
+      eslint-plugin-import: 2.32.0(eslint@9.39.5(jiti@2.7.0))
+      typescript-parsec: 0.3.4
+      viem: 2.57.17(typescript@5.9.3)(zod@3.25.76)
+    transitivePeerDependencies:
+      - '@typescript-eslint/parser'
+      - bufferutil
+      - eslint
+      - eslint-import-resolver-typescript
+      - eslint-import-resolver-webpack
+      - mppx
+      - supports-color
+      - typescript
+      - utf-8-validate
+      - zod
+
+  genlayer-js@2.0.0-rc.3(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)(zod@3.25.76):
     dependencies:
       eslint-plugin-import: 2.32.0(eslint@9.39.5(jiti@2.7.0))
       typescript-parsec: 0.3.4

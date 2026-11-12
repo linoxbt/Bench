@@ -4,7 +4,7 @@
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { TransactionStatus } from "genlayer-js/types";
-import { ALKAHEST_BRADBURY, genlayer, genvmTxUrl, type Network } from "../packages/core/src/index.js";
+import { ALKAHEST_BRADBURY, feesFor, genlayer, genvmTxUrl, type Network } from "../packages/core/src/index.js";
 
 const network: Network = process.env.BENCH_NETWORK === "studionet" ? "studionet" : "bradbury";
 const key = process.env.GENLAYER_KEY;
@@ -16,7 +16,10 @@ const a = ALKAHEST_BRADBURY;
 const args = [a.trustedOracleArbiter, a.erc20EscrowObligation, a.commitRevealObligation, a.eas];
 
 console.log(`Deploying BenchJudge to ${network} from ${gl.account!.address} ...`);
-const hash = await gl.client.deployContract({ account: gl.account, code, args });
+// BenchJudge is GenVM v0.3 (Bradbury). Studionet still runs v0.2: its preview sandbox was deployed from the
+// v0.2 build in git history (see README), so this script refuses to deploy the v0.3 source there.
+if (network === "studionet" && code.startsWith("# v0.3")) throw new Error("Studionet runs GenVM v0.2; contracts/bench_judge.py targets v0.3 (Bradbury)");
+const hash = await gl.client.deployContract({ account: gl.account, code, args, fees: await feesFor(gl) });
 console.log(`  tx ${genvmTxUrl(hash, network)}`);
 const receipt = await gl.client.waitForTransactionReceipt({ hash: hash as never, status: TransactionStatus.ACCEPTED, retries: 200, interval: 5000 });
 const address = (receipt.data as { contract_address?: string } | undefined)?.contract_address ?? receipt.recipient ?? receipt.to_address;

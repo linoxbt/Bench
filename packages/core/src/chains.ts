@@ -13,6 +13,13 @@ export const genlayerChain: Chain = defineChain({
   testnet: true,
 });
 
+/**
+ * GenLayer node RPC for GenVM calls (gen_call reads, simulations) on Testnet Bradbury. Same chain as
+ * rpc.testnet-chain.genlayer.com, but that endpoint (genlayer-js's default) serves only the EVM methods.
+ */
+export const BRADBURY_GENLAYER_RPC =
+  (typeof process !== "undefined" ? process.env?.GENLAYER_RPC : undefined) ?? "https://rpc-bradbury.genlayer.com";
+
 /** GenVM-side explorer (BenchJudge transactions). */
 export const BRADBURY_EXPLORER = "https://explorer-bradbury.genlayer.com";
 export const STUDIO_EXPLORER = "https://explorer-studio.genlayer.com";

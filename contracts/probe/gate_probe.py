@@ -1,12 +1,14 @@
-# { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
+# v0.3.0
+# { "Depends": "py-genlayer:babwp9t37jw9g4j2bccgn14g6x7x9s1f7dsmh7emvz735pz4zxa0" }
 """Day 1 gate probe: proves an Intelligent Contract's EVM write lands on GenLayer Chain as itself.
 
 `probe(uid)` emits TrustedOracleArbiter.arbitrate(uid, b"", True). After FINALIZED, an ArbitrationMade
 event with oracle == this contract's address must appear on chain 4221 (scripts/day1-gate-probe.ts checks).
-`read_escrow(uid)` exercises the EVM view path BenchJudge uses (and the v0.2.16 view-proxy shim).
+`read_escrow(uid)` exercises the EVM view path BenchJudge uses.
 """
 
-from genlayer import *
+import genlayer as gl
+from genlayer.types import Address, u64, u256
 
 
 @gl.evm.contract_interface
@@ -29,15 +31,7 @@ class EAS:
         pass
 
 
-def _view(contract):
-    proxy = contract.view()
-    cls = type(proxy)
-    if not hasattr(cls, "parent"):
-        cls.parent = property(lambda self: self._proxy_parent)
-    return proxy
-
-
-class GateProbe(gl.Contract):
+class GateProbe(gl.contract.Contract):
     arbiter: Address
     eas: Address
     sent: u256
@@ -56,7 +50,7 @@ class GateProbe(gl.Contract):
     @gl.public.write
     def read_escrow(self, uid: str) -> None:
         h = uid[2:] if uid.startswith("0x") else uid
-        att = _view(EAS(self.eas)).getAttestation(bytes.fromhex(h))
+        att = EAS(self.eas).view().getAttestation(bytes.fromhex(h))
         self.last_attester = att[7].as_hex
 
     @gl.public.view

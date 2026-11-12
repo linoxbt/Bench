@@ -1,8 +1,8 @@
 /**
  * End to end on GenLayer Testnet Bradbury: real escrow, real BenchJudge, real validators, real payout.
  * Opt in: BENCH_E2E=1 plus BENCH_JUDGE, BENCH_USD, BENCH_BUYER_KEY, BENCH_SELLER_KEY (and optionally GENLAYER_KEY).
- * Each case waits for GenLayer finality (~30 min), so run it by hand before recording, not in CI.
- * The fail path uses a short expiry so the reclaim is real; it waits for that expiry too.
+ * Each case waits for GenLayer finality (a few minutes on Bradbury today), so run it by hand, not in CI.
+ * The fail path uses a 20-minute expiry so the reclaim is real; it waits for that expiry too.
  */
 import { readFileSync } from "node:fs";
 import { parseUnits, type Hex } from "viem";
@@ -57,7 +57,7 @@ describe.skipIf(!enabled)("Bradbury end to end", () => {
   });
 
   it("clear fail: verdict false; collect reverts; buyer reclaims after a short expiry", async () => {
-    const r = await runCase("02-clear-fail", 2n * 3600n);
+    const r = await runCase("02-clear-fail", 20n * 60n);
     expect(r.c?.fulfilled).toBe(false);
     expect(r.landed?.decision).toBe(false);
     await expect(collect(seller, r.escrowUid, r.fulfillmentUid)).rejects.toThrow();

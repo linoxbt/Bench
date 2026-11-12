@@ -45,6 +45,14 @@ export default async function Status() {
   const rows: Row[] = [
     {
       name: "BenchJudge",
+      network: "Testnet Bradbury",
+      address: PUBLIC.judge,
+      href: PUBLIC.judge && `https://explorer-bradbury.genlayer.com/address/${PUBLIC.judge}`,
+      state: PUBLIC.judge ? (bradburyCases === undefined ? "unknown" : "live") : "pending",
+      detail: PUBLIC.judge ? `${bradburyCases ?? "?"} cases` : "Not configured for this deployment",
+    },
+    {
+      name: "BenchJudge (free preview sandbox)",
       network: "GenLayer Studionet",
       address: studio,
       href: studio && `https://explorer-studio.genlayer.com/address/${studio}`,
@@ -58,14 +66,6 @@ export default async function Status() {
       href: `https://explorer-studio.genlayer.com/address/${STUDIO_B}`,
       state: studioBCases === undefined ? "unknown" : "live",
       detail: studioBCases === undefined ? "Couldn't reach Studionet" : `${studioBCases} cases`,
-    },
-    {
-      name: "BenchJudge",
-      network: "Testnet Bradbury",
-      address: PUBLIC.judge,
-      href: PUBLIC.judge && `https://explorer-bradbury.genlayer.com/address/${PUBLIC.judge}`,
-      state: PUBLIC.judge ? (bradburyCases === undefined ? "unknown" : "live") : "pending",
-      detail: PUBLIC.judge ? `${bradburyCases ?? "?"} cases` : "Waiting for testnet GEN to deploy",
     },
     {
       name: "Alkahest TrustedOracleArbiter",

@@ -32,13 +32,14 @@ TrustedOracleArbiter on GenLayer Testnet Bradbury: no relayer, no single model, 
     export BENCH_BUYER_KEY=...   # or BENCH_SELLER_KEY; set by the user, never pasted into chat
     alias bench="node $(pwd)/packages/cli/dist/index.js"
 
-GEN for gas comes from testnet-faucet.genlayer.foundation (100 GEN per address per 24 h).
+GEN for gas comes from testnet-faucet.genlayer.foundation (100 GEN per address per 24 h). Opening a case
+needs a fee deposit of about 0.1 GEN; nearly all of it is refunded.
 Add `--json` to any command for machine-readable output.
 
 ## Buyer flow
 
 1. `bench escrow --demand "<plain-English requirements>" --rubric "<how to judge>" --amount 50 --expires 24h`
-   - The expiry must outlast delivery + GenLayer finality (~30 min) + any appeals. 24h is a safe default.
+   - The expiry must outlast delivery + GenLayer finality (a few minutes on Bradbury) + any appeals. 24h is a safe default.
 2. Share the escrowUid, the demand and the rubric with the seller.
 3. If the verdict is NOT FULFILLED: `bench reclaim --escrow <uid>` once the escrow has expired.
 
