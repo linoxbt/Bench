@@ -123,8 +123,9 @@ export default async function Status() {
           ))}
         </div>
         <p className="mt-6 max-w-2xl text-sm text-muted">
-          Bradbury deployments need testnet GEN, which the GenLayer faucet grants to a GitHub account older than three months holding 0.01 ETH on
-          Ethereum mainnet.
+          BenchJudge runs on Testnet Bradbury (GenVM v0.3); real escrows settle there. The Studionet sandbox runs the GenVM v0.2 build for
+          free previews. Day 1 check passed on Bradbury: an Intelligent Contract&apos;s <code>arbitrate</code> call landed on chain with the
+          contract itself as the oracle.
         </p>
       </Container>
     </>
