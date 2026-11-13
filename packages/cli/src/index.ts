@@ -366,7 +366,9 @@ program
     if (!quote.canAppeal) throw new Error("This transaction can't be appealed now (already final, or not in its appeal window).");
     const cost = quote.charge === undefined ? "unknown" : `${formatEther(quote.charge)} GEN`;
     if (!o.yes) {
-      print(`Appealing ${tx} costs ${cost} (bond plus appeal funding; returned if the appeal succeeds). Re-run with --yes to pay it.`, {
+      print(`Appealing ${tx} costs ${cost} (bond plus appeal funding; returned if the appeal succeeds). Re-run with --yes to pay it.\n` +
+        `Warning (Testnet Bradbury, Nov 2026): an appealed BenchJudge transaction re-judged as ACCEPTED could not be finalized ` +
+        `(finalizeTransaction reverts), which held every later transaction to that contract in ACCEPTED. Appeal only if you accept that risk.`, {
         canAppeal: true,
         charge: quote.charge,
       });

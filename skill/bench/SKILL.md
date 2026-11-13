@@ -27,7 +27,7 @@ TrustedOracleArbiter on GenLayer Testnet Bradbury: no relayer, no single model, 
 
     git clone https://github.com/linoxbt/Bench bench && cd bench
     pnpm install && pnpm build
-    export BENCH_JUDGE=0xa1Df17D40dE10a8CF4a6Cb7Ce3962C3304d775dE   # BenchJudge on Testnet Bradbury
+    export BENCH_JUDGE=0xBb383581447A1F87F9634dEd9f8b9A2BfAD859e6   # BenchJudge on Testnet Bradbury
     export BENCH_USD=0xbf977ee6d7299d32ae96d2d29e784b7455e898b9     # bUSD demo token (free test token, no value)
     export BENCH_BUYER_KEY=...   # or BENCH_SELLER_KEY; set by the user, never pasted into chat
     alias bench="node $(pwd)/packages/cli/dist/index.js"

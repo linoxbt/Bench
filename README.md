@@ -35,7 +35,7 @@ test bUSD, then lock, deliver (commit-reveal), open the case on BenchJudge, and 
 | --- | --- |
 | Alkahest on GenLayer Chain (4221) | Deployed by us ([deployments/alkahest-bradbury.json](deployments/alkahest-bradbury.json)); the published addresses had no code |
 | Day 1 gate (EVM read + write from GenVM) | **Passed.** `ArbitrationMade` landed with `oracle ==` the probe contract `0x0a97B54f…c74B`, finalized in ~2 min |
-| BenchJudge on **Bradbury** (GenVM v0.3) | `0xa1Df17D40dE10a8CF4a6Cb7Ce3962C3304d775dE` ([deployments/bradbury.json](deployments/bradbury.json)): per-escrow limits, named sellers, `check_case`, `resend` |
+| BenchJudge on **Bradbury** (GenVM v0.3) | `0xBb383581447A1F87F9634dEd9f8b9A2BfAD859e6` ([deployments/bradbury.json](deployments/bradbury.json)): per-escrow limits, named sellers, `check_case`, `resend`. The same code ran the e2e below at `0xa1Df17D4…75dE`, whose queue an appeal later froze (see *Findings*) |
 | BenchUSD on GenLayer Chain | `0xbf977ee6d7299d32ae96d2d29e784b7455e898b9` |
 | Live site, browser (`pnpm test:web:live`) | **Pass** on bench-ivory.vercel.app: connect → mint → lock → deliver → open the case (fee deposit) → verdict lands → collect, in 3 min |
 | Bradbury end-to-end (`BENCH_E2E=1 pnpm e2e`) | **4/4 pass** on the current BenchJudge, seller-bound escrows ([deployments/e2e-bradbury.json](deployments/e2e-bradbury.json)): clear pass ([judge](https://explorer-bradbury.genlayer.com/tx/0xc1d6d87ed3fdd1ba222fb374ecd59fa8156b1a9e2aa66fd4be41eb4419034cc3) → [ArbitrationMade](https://explorer.testnet-chain.genlayer.com/tx/0xfcc298dfdb2ad5223021b92fc23a2e3f9827df90271f1c37be1478d7b4a1db93) → [collect](https://explorer.testnet-chain.genlayer.com/tx/0x1aac380fe74786e5850c84a3f7e66400d892e4aef321a365223c87c65be34cf1)), URL delivery, prompt injection (rejected, [ArbitrationMade false](https://explorer.testnet-chain.genlayer.com/tx/0xb160081c0d2f8a088f0c903afd5e013cec25e52075aed11e009d379b8e0fcac0)), clear fail (collect reverts, buyer [reclaims](https://explorer.testnet-chain.genlayer.com/tx/0x8913ca5dba57bc29bf48a3d29a13b36ec936a7d17e8def52d744be8d16cc210f) after a 30-minute expiry) |
@@ -191,6 +191,16 @@ block shared verbatim by all three judges (a test fails if they drift).
   transactions (BenchJudge) are on `explorer-bradbury.genlayer.com`, which shows nothing for an EVM hash.
 - **The appeal window is short.** On Bradbury it closed about 60 s after ACCEPTED (from the consensus contract's lifecycle view,
   which the jury panel reads for its countdown). Appeal right away or not at all.
+- **An appeal can freeze a contract's finality queue** ([deployments/appeal-bradbury.json](deployments/appeal-bradbury.json)).
+  We appealed a borderline preview (bond 0.05 GEN). The appeal round of 13 validators agreed and the tx went back to ACCEPTED,
+  and the lifecycle view then reported it ready to finalize, but `finalizeTransaction` reverted (`0x0c35bf69`) and
+  `finalizeDecisions` skipped it. Transactions to one contract finalize in order, so every later case on that BenchJudge stayed
+  ACCEPTED: a live run's verdict never reached Alkahest. A fresh deployment finalized in 2 minutes. This is Bradbury's consensus,
+  not Bench, and anyone can appeal, so it is also a way to stall a judge. Until it is fixed: `bench appeal` warns, the site shows
+  when finality is overdue, and an escrow that never gets a verdict is still reclaimable by the buyer after expiry. In an
+  earlier appeal the appeal round's leader timed out and the tx finalized with **no verdict at all**; Bench now says so and lets
+  anyone open the case again. Also seen: `LEADER_TIMEOUT` is not final (Bradbury rotates the leader), so waits only end on
+  ACCEPTED, FINALIZED or CANCELED.
 
 - **Bradbury moved to GenVM v0.3 and fee deposits.** v0.2 contracts deploy but always finish with an error; genlayer-js 1.x
   transactions go to the old consensus contract and are never picked up; 2.x without fees reverts (`FeeValueMustBeNonZero`).

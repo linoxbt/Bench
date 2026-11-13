@@ -1,0 +1,25 @@
+{
+  "network": "bradbury",
+  "judge": "0xa1Df17D40dE10a8CF4a6Cb7Ce3962C3304d775dE",
+  "runs": [
+    {
+      "tx": "https://explorer-bradbury.genlayer.com/tx/0x82c6158b15aee604f482bd5ee692e436377b74bf5d411d2750031501725b7627",
+      "appealCharge": "0.05 GEN",
+      "outcome": "Appeal round's leader timed out (no rotations left); the tx FINALIZED with execution NOT_VOTED and no verdict recorded (preview_count stayed 0)."
+    },
+    {
+      "tx": "https://explorer-bradbury.genlayer.com/tx/0x6281bf62d83309231f5326a4ed8b156351cb40466820d0a40bc70c6b5c8d9c36",
+      "appealCharge": "0.05 GEN",
+      "verdictBeforeAppeal": true,
+      "outcome": "Round 3 (13 validators, all revealed, MAJORITY_AGREE) returned the tx to ACCEPTED. Lifecycle resolution action 6 (Finalize) since 17:31:55Z, but finalizeTransaction reverts 0x0c35bf69 and finalizeDecisions skips it; later transactions to the same contract stayed ACCEPTED (resolution action NoOp).",
+      "laterTxBlocked": "https://explorer-bradbury.genlayer.com/tx/0xbfd35b19649c23637b6aadb96ff9726a394861145d9f97d2cf5592c2f82b0d56"
+    }
+  ],
+  "freshJudgeFinalityCheck": {
+    "judge": "0xBb383581447A1F87F9634dEd9f8b9A2BfAD859e6",
+    "tx": "https://explorer-bradbury.genlayer.com/tx/0x647bcb6917faac16bd50149fff9d9657020ebe8c4b82d46723747fca9f1efa9b",
+    "acceptedAfter": "65s",
+    "finalizedAfter": "120s"
+  },
+  "recordedAt": "2026-11-13T18:40:00Z"
+}

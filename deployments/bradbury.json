@@ -1,8 +1,8 @@
 {
   "network": "bradbury",
-  "benchJudge": "0xa1Df17D40dE10a8CF4a6Cb7Ce3962C3304d775dE",
-  "deployTx": "0x42df6300ca2bf6bc1545a4c7f1f637580df4806036f3040a98b0422b8b412e04",
-  "deployedAt": "2026-11-13T16:42:13.959Z",
+  "benchJudge": "0xBb383581447A1F87F9634dEd9f8b9A2BfAD859e6",
+  "deployTx": "0xb9da3c311a1baa735dd2f825ede9aea7c0013ea023d0515395520410541d9cca",
+  "deployedAt": "2026-11-13T18:26:53.255Z",
   "source": "../contracts/bench_judge.py",
   "alkahest": {
     "eas": "0x250701601F3C76FDd6805576ed57988f678b9709",
