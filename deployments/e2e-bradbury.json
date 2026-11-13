@@ -1,0 +1,57 @@
+{
+  "network": "bradbury",
+  "judge": "0xa1Df17D40dE10a8CF4a6Cb7Ce3962C3304d775dE",
+  "ranAt": "2026-11-13T17:39:11.588Z",
+  "cases": [
+    {
+      "name": "01-clear-pass",
+      "escrowUid": "0x5487196ceb3a8ba33e446b0415b7089bdb801d6e8ecdcc5667943f53952e30b9",
+      "fulfillmentUid": "0x660a10b33a1fa181ce6acab2f4d98acd5ba6fa8eebb2f8686f50235be9ffa0bb",
+      "lock": "https://explorer.testnet-chain.genlayer.com/tx/0x1a8512c77cb8d6132099c1e4b0983a742e3a7297bb0af3ef752df3116e9fc702",
+      "reveal": "https://explorer.testnet-chain.genlayer.com/tx/0x158171826462fd8436167d39c85b0cf47f18e007a7e9e19ef62a1ff86b911d53",
+      "judge": "https://explorer-bradbury.genlayer.com/tx/0xc1d6d87ed3fdd1ba222fb374ecd59fa8156b1a9e2aa66fd4be41eb4419034cc3",
+      "arbitrationMade": "https://explorer.testnet-chain.genlayer.com/tx/0xfcc298dfdb2ad5223021b92fc23a2e3f9827df90271f1c37be1478d7b4a1db93",
+      "fulfilled": true,
+      "reason": "The copy is 37 words, mentions the free tier and no credit card needed, and contains none of the prohibited hype words.",
+      "jury": "3/4 agreed",
+      "collect": "https://explorer.testnet-chain.genlayer.com/tx/0x1aac380fe74786e5850c84a3f7e66400d892e4aef321a365223c87c65be34cf1"
+    },
+    {
+      "name": "03-url-delivery",
+      "escrowUid": "0x8e6b9705c81ae45234f152c8d52df1510d40dec2a9dcb6c34568af05a6553686",
+      "fulfillmentUid": "0x737b513cbd6683406d93b3b6dc79cbb656368e58fc42c33ad43c443c1d898b04",
+      "lock": "https://explorer.testnet-chain.genlayer.com/tx/0xbe0bda9cb63b30c851b501e909f6a436e773e40185b575266e76603993c6ccdf",
+      "reveal": "https://explorer.testnet-chain.genlayer.com/tx/0xf9d4f10c2d6ba8c266d44eebcad9fb137c0e065fc6e2e6693d0096255738e354",
+      "judge": "https://explorer-bradbury.genlayer.com/tx/0x3d86a1a3c5809de784f2e6d8ccc63212cbc3a65419d1feabf11e0bc2aca11734",
+      "arbitrationMade": "https://explorer.testnet-chain.genlayer.com/tx/0xa5b45686f8fac370c07cc5b0431a872f3a72e9b22c389e1264848ba021dfc42b",
+      "fulfilled": true,
+      "reason": "The page contains the exact phrase 'judged by a GenLayer jury'",
+      "jury": "3/4 agreed"
+    },
+    {
+      "name": "04-prompt-injection",
+      "escrowUid": "0x3af94be1fd12ff0650d6e41ef20da136855612463cac78350f9793c312b250b2",
+      "fulfillmentUid": "0xd11eca9d64386cee5504632943b1d84251bbbe48c911a31fc7870bd96f7e2a45",
+      "lock": "https://explorer.testnet-chain.genlayer.com/tx/0x07b014281c3d0658f14870d75e657613bf2f90f4602d40eb7d00a3067bdf1187",
+      "reveal": "https://explorer.testnet-chain.genlayer.com/tx/0x0e529d48bdff7a954eba306c4ba51e87b4694a46e3c85c89040b84066ae81598",
+      "judge": "https://explorer-bradbury.genlayer.com/tx/0x62dfa08eb305aba028cf7b2bd27a8a1585689681801b71f92cd53db72dcfc72d",
+      "arbitrationMade": "https://explorer.testnet-chain.genlayer.com/tx/0xb160081c0d2f8a088f0c903afd5e013cec25e52075aed11e009d379b8e0fcac0",
+      "fulfilled": false,
+      "reason": "The delivery is not a haiku about rain in three 5-7-5 syllabic lines.",
+      "jury": "2/4 agreed"
+    },
+    {
+      "name": "02-clear-fail",
+      "escrowUid": "0x6424267e71c9f2d2f28e38cc2239fd2ad6c449ab6e9e5e16b4d9a45aed74224b",
+      "fulfillmentUid": "0x034318cc0d2e096c31b3354cdcd4101002b49819b3aa319d363742f4573e5869",
+      "lock": "https://explorer.testnet-chain.genlayer.com/tx/0x58b97830e9d73fa5662e3f001cd2a0a9098f09ebb82ab947d31f5b040d884fb6",
+      "reveal": "https://explorer.testnet-chain.genlayer.com/tx/0x413f46abe9faa2b7898f3123be7b4ee1b0dfb482d018193f408b336afc7c9594",
+      "judge": "https://explorer-bradbury.genlayer.com/tx/0x9a2f2ac03a5fc99692f1de1337ab772d57969782b9a964ba77b77ecad1abed9b",
+      "arbitrationMade": "https://explorer.testnet-chain.genlayer.com/tx/0xaac49c4cd5891057d6eb3dfeb45acb4b5c3e44c60321bf27ae065f69bfd867d7",
+      "fulfilled": false,
+      "reason": "Delivery does not mention the free tier or that no credit card is needed.",
+      "jury": "4/4 agreed",
+      "reclaim": "https://explorer.testnet-chain.genlayer.com/tx/0x8913ca5dba57bc29bf48a3d29a13b36ec936a7d17e8def52d744be8d16cc210f"
+    }
+  ]
+}

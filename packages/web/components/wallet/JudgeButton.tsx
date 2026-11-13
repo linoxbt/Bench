@@ -7,7 +7,7 @@ import { PUBLIC } from "@/lib/config";
 import { saveJudgeTx, savedJudgeTx } from "@/lib/progress";
 import { errorText, useWallet } from "./WalletProvider";
 
-const FAILED = ["UNDETERMINED", "LEADER_TIMEOUT", "VALIDATORS_TIMEOUT", "CANCELED"];
+const RETRYING = ["UNDETERMINED", "LEADER_TIMEOUT", "VALIDATORS_TIMEOUT"];
 /** Refusals a lagging RPC node can cause right after a reveal (mirrors LAG_PRONE_REFUSALS in @bench/core). */
 const LAG_PRONE = [/does not reference this escrow/, /not a CommitRevealObligation attestation/];
 
@@ -80,7 +80,11 @@ export function JudgeButton({ escrowUid, fulfillmentUid }: { escrowUid: Hex; ful
       for (;;) {
         const tx = await client.getTransaction({ hash: hash as never }).catch(() => undefined);
         const status = String(tx?.statusName ?? "");
-        if (FAILED.includes(status)) throw new Error(`The jury couldn't settle on a verdict (${status}). You can open the case again.`);
+        // Only CANCELED is terminal: after a timeout Bradbury rotates to a new leader (or, with none left, finalizes).
+        if (status === "CANCELED") throw new Error("GenLayer canceled the transaction. You can open the case again.");
+        if (RETRYING.includes(status)) setBusy("A leader timed out; GenLayer is handing the case to another validator…");
+        if (status === "FINALIZED" && tx?.txExecutionResultName === "NOT_VOTED")
+          throw new Error("The jury reached no result (its leaders timed out), so nothing was recorded. You can open the case again.");
         if (status === "ACCEPTED" || status === "FINALIZED") {
           if (tx?.txExecutionResultName === "FINISHED_WITH_ERROR") {
             const reason = String(await client.readContract({ address: PUBLIC.judge, functionName: "check_case", args: [escrowUid, fulfillmentUid] }).catch(() => ""));

@@ -8,7 +8,8 @@ export function LifecycleBar({ status, appealDeadline }: { status: string; appea
   const s = status.toUpperCase();
   const idx = STAGES.indexOf(s as (typeof STAGES)[number]);
   const appeal = s.startsWith("APPEAL");
-  const bad = ["UNDETERMINED", "CANCELED", "LEADER_TIMEOUT", "VALIDATORS_TIMEOUT"].includes(s);
+  const bad = ["UNDETERMINED", "CANCELED"].includes(s);
+  const retrying = ["LEADER_TIMEOUT", "VALIDATORS_TIMEOUT"].includes(s);
   return (
     <div className="space-y-2">
       <div className="flex gap-1">
@@ -21,10 +22,11 @@ export function LifecycleBar({ status, appealDeadline }: { status: string; appea
         <span>Accepted · appeal window</span>
         <span>Finalized</span>
       </div>
-      <p className={`text-sm font-medium ${bad ? "text-fail" : appeal ? "text-warn" : "text-ink"}`}>
+      <p className={`text-sm font-medium ${bad ? "text-fail" : appeal || retrying ? "text-warn" : "text-ink"}`}>
         {s}
         {s === "ACCEPTED" && " (verdict reached; appeal window open, not final yet)"}
         {appeal && " (a larger jury is re-judging)"}
+        {(s === "LEADER_TIMEOUT" || s === "VALIDATORS_TIMEOUT") && " (GenLayer rotates to another leader, or finalizes with no verdict if none are left)"}
       </p>
       {s === "ACCEPTED" && appealDeadline ? <AppealCountdown deadline={appealDeadline} /> : null}
     </div>

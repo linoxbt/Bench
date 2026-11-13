@@ -63,14 +63,17 @@ export function executionError(tx: GenLayerTransaction): string | undefined {
   return undefined;
 }
 
+/** A transaction that ended (e.g. every leader timed out, then finality) without any execution result to apply. */
+export const endedWithoutResult = (tx: GenLayerTransaction) => statusOf(tx) === "FINALIZED" && tx.txExecutionResultName === "NOT_VOTED";
+
 /** Consensus outcomes that end a transaction without a usable result. */
 export const FAILED_STATUSES = ["UNDETERMINED", "LEADER_TIMEOUT", "VALIDATORS_TIMEOUT", "CANCELED"] as const;
 const statusOf = (tx: GenLayerTransaction) => String(tx.statusName ?? tx.status ?? "");
 
 /**
  * Poll a GenLayer transaction until it is ACCEPTED (or FINALIZED), tolerating RPC errors along the way.
- * Throws on a failed consensus outcome: genlayer-js 2.x's own "wait for ACCEPTED" also returns on UNDETERMINED,
- * timeouts and CANCELED, which would read as success.
+ * genlayer-js 2.x's own "wait for ACCEPTED" returns on UNDETERMINED, timeouts and CANCELED, which would read as success
+ * and also gives up on states Bradbury recovers from; this returns only on ACCEPTED or FINALIZED and throws on CANCELED.
  */
 export async function waitTx(
   gl: GenLayer,
@@ -85,10 +88,10 @@ export async function waitTx(
     try {
       const tx = await gl.client.getTransaction({ hash: hash as never });
       last = statusOf(tx);
-      // Waiting for ACCEPTED, a failed outcome ends the wait. Waiting for FINALIZED it doesn't: an appeal round whose
-      // leader times out shows LEADER_TIMEOUT for a while and then finalizes (seen on Bradbury), so only CANCELED is final.
-      const failed = target === "FINALIZED" ? last === "CANCELED" : (FAILED_STATUSES as readonly string[]).includes(last);
-      if (failed) throw Object.assign(new Error(`GenLayer consensus ended ${last} (tx ${hash}).`), { final: true });
+      // Only CANCELED is terminal. On Bradbury a LEADER_TIMEOUT rotates to a new leader (round 2 PROPOSING), and an
+      // appeal round that times out shows LEADER_TIMEOUT and then FINALIZES; so timeouts and UNDETERMINED are waited out.
+      // A transaction that finalizes without a result is the caller's to detect (executionError, getCase).
+      if (last === "CANCELED") throw Object.assign(new Error(`GenLayer consensus ended ${last} (tx ${hash}).`), { final: true });
       if (last === "FINALIZED" || (target === "ACCEPTED" && last === "ACCEPTED")) return tx;
     } catch (e) {
       if ((e as { final?: boolean }).final) throw e;
@@ -152,6 +155,7 @@ export async function openCase(gl: GenLayer, escrowUid: Hex, fulfillmentUid: Hex
   })) as Hex;
   o.onSubmitted?.(hash);
   const accepted = await waitTx(gl, hash, "ACCEPTED");
+  if (endedWithoutResult(accepted)) throw new Error(`The jury reached no result (its leaders timed out), so nothing was recorded. Open the case again (tx ${hash}).`);
   const err = executionError(accepted);
   if (err) {
     const reason = (await checkCase(gl, escrowUid, fulfillmentUid, judge)) || err;
@@ -172,6 +176,7 @@ export async function preview(gl: GenLayer, caseId: string, demand: string, deli
     fees: await feesFor(gl),
   })) as Hex;
   const receipt = await waitTx(gl, hash, "ACCEPTED", 20 * 60_000, 3000);
+  if (endedWithoutResult(receipt)) throw new Error(`The jury reached no result (its leaders timed out); try again (tx ${hash}).`);
   const err = executionError(receipt);
   if (err) throw new Error(`preview failed: ${err} (tx ${hash})`);
   const caseKey = `preview:${caseId}`;
