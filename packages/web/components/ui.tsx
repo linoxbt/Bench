@@ -50,7 +50,12 @@ export function Note({ children, tone = "dim" }: { children: ReactNode; tone?: "
     warn: "bg-[#fff4e5] text-warn",
     fail: "bg-[#fdecea] text-fail",
   }[tone];
-  return <p className={`rounded-xl px-4 py-3 text-sm leading-relaxed ${c}`}>{children}</p>;
+  // Announced to screen readers: errors interrupt, everything else waits its turn.
+  return (
+    <p role={tone === "fail" ? "alert" : "status"} className={`rounded-xl px-4 py-3 text-sm leading-relaxed ${c}`}>
+      {children}
+    </p>
+  );
 }
 
 /** Compact header for app pages. */

@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { readVerdict } from "@/lib/read";
+import { readVerdict, validCaseId } from "@/lib/read";
 
 export const alt = "A Bench verdict";
 export const size = { width: 1200, height: 630 };
@@ -8,7 +8,7 @@ export const contentType = "image/png";
 /** Per-verdict card: the outcome, the demand and the jury's reason, so a shared link tells the story. */
 export default async function VerdictOg({ params }: { params: Promise<{ id: string }> }) {
   const id = decodeURIComponent((await params).id);
-  const v = await readVerdict(id);
+  const v = validCaseId(id) ? await readVerdict(id) : { network: "bradbury" as const, verdict: { ok: undefined } };
   const c = "ok" in v.verdict ? v.verdict.ok : undefined;
   const ok = c?.fulfilled;
   const clip = (t: string, n: number) => (t.length > n ? `${t.slice(0, n - 1)}…` : t);

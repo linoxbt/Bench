@@ -78,10 +78,43 @@ describe("bench CLI (local chain)", () => {
   });
 
   it("rejects malformed uids and missing keys", async () => {
-    expect((await bench("collect", "--escrow", "0x1234", "--fulfillment", "0x" + "ab".repeat(32))).error).toMatch(/32-byte uid/);
+    expect((await bench("collect", "--escrow", "0x1234", "--fulfillment", "0x" + "ab".repeat(32))).error).toMatch(/is not a 32-byte escrow uid/);
     const saved = env.BENCH_SELLER_KEY;
     delete env.BENCH_SELLER_KEY;
     expect((await bench("deliver", "--escrow", "0x" + "ab".repeat(32), "--text", "x")).error).toMatch(/Set BENCH_SELLER_KEY/);
     env.BENCH_SELLER_KEY = saved;
+  });
+
+  it("seller-bound escrows, amount validation and resuming an interrupted delivery", async () => {
+    const stranger = privateKeyToAccount(KEYS.stranger).address;
+    const bound = await bench("escrow", "--demand", "A haiku about rain", "--amount", "1", "--seller", stranger, "--tries", "2");
+    expect(bound.seller).toBe(stranger);
+    // The CLI refuses a delivery from anyone but the named seller, before any money moves.
+    expect((await bench("deliver", "--escrow", bound.escrowUid, "--text", "x")).error).toMatch(/only accepts deliveries from/);
+
+    expect((await bench("escrow", "--demand", "d", "--amount", "0")).error).toMatch(/greater than zero/);
+    expect((await bench("escrow", "--demand", "d", "--amount", "1.0000000000000000001")).error).toMatch(/18 decimals/);
+    expect((await bench("escrow", "--demand", "d", "--expires", "5m")).error).toMatch(/at least 30 minutes/);
+
+    // An interrupted delivery: the record (with its salt) was saved, the commit landed, the reveal never ran.
+    const open = await bench("escrow", "--demand", "A haiku about rain", "--amount", "1");
+    const { mkdtempSync, mkdirSync, writeFileSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const home = mkdtempSync(`${tmpdir()}/bench-home-`);
+    const { prepareDelivery, waitConfirmed, COMMIT_REVEAL_ABI } = await import("../../packages/core/src/index.js");
+    const sellerAddr = privateKeyToAccount(KEYS.seller).address;
+    const pub = testClient as never;
+    let saved = await prepareDelivery(pub, cfg.addresses, sellerAddr, open.escrowUid, "Rain on the tin roof");
+    const { wallet } = await import("./fixture.js");
+    const commitHash = await wallet(KEYS.seller).writeContract({ address: cfg.addresses.commitRevealObligation, abi: COMMIT_REVEAL_ABI, functionName: "commit", args: [saved.commitment, 3600n], value: 1n });
+    await waitConfirmed(pub, commitHash, "Commit");
+    saved = { ...saved, commitHash };
+    mkdirSync(`${home}/pending`, { recursive: true });
+    writeFileSync(`${home}/pending/${open.escrowUid}-${sellerAddr.toLowerCase()}.json`, JSON.stringify(saved));
+    env.BENCH_HOME = home;
+    const resumed = await bench("deliver", "--escrow", open.escrowUid);
+    delete env.BENCH_HOME;
+    expect(resumed.fulfillmentUid).toMatch(/^0x[0-9a-f]{64}$/);
+    expect(resumed.commitHash).toBe(commitHash); // the original commit, not a new one
   });
 });

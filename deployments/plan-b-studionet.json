@@ -1,9 +1,9 @@
 {
   "network": "studionet",
-  "benchJudgeB": "0x6E7aB064add7eE67Ba1cEd35BC496293c65515f0",
-  "oracle": "0x64b73431E756EA017b9b6cDf9FB8C44883142c1E",
+  "benchJudgeB": "0x764911B11Bf6b8C0C41bb7503fA0e9c2025e65B3",
+  "oracle": "0x4d031d5dB6E6CC5acf914B70c4D512B228A802E3",
   "sourceRpc": "https://sepolia.base.org",
-  "deployTx": "0x5c2798aef383385b22ac3439152aef05f5f0400c2e8dd9dc924ee9f2eba71315",
+  "deployTx": "0x5717489ee84f537aa3305176a5b63e8dc30f3064c2403f54d062e5c104994ffb",
   "alkahest": {
     "eas": "0x4200000000000000000000000000000000000021",
     "erc20EscrowObligation": "0x235E4D9d329460fEE53A45cC6b14109bC74818AA",
@@ -11,5 +11,5 @@
     "stringObligation": "0xB1e14fdeBB8192Fb0bEe918075CcD350d0Cb47a7",
     "trustedOracleArbiter": "0xCA13C55a1863fF8F6CEF9166C30bb4563EB7Dca3"
   },
-  "deployedAt": "2026-11-09T19:21:21.155Z"
+  "deployedAt": "2026-11-13T17:04:26.549Z"
 }

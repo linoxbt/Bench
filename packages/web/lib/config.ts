@@ -31,7 +31,7 @@ export const PUBLIC = {
   chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? 4221),
   chainName: process.env.NEXT_PUBLIC_CHAIN_NAME ?? "GenLayer Bradbury",
   chainRpc: process.env.NEXT_PUBLIC_CHAIN_RPC ?? "https://rpc-bradbury.genlayer.com",
-  chainExplorer: process.env.NEXT_PUBLIC_CHAIN_EXPLORER ?? "https://explorer-bradbury.genlayer.com",
+  chainExplorer: process.env.NEXT_PUBLIC_CHAIN_EXPLORER ?? "https://explorer.testnet-chain.genlayer.com", // EVM txs (Blockscout); GenVM txs use explorer-bradbury
   alkahest: alkahest(),
   /** Reown (WalletConnect) project ID: a public identifier. Protect it with the domain allowlist in the Reown dashboard. */
   reownProjectId: process.env.NEXT_PUBLIC_REOWN_PROJECT_ID || undefined,

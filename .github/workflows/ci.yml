@@ -40,8 +40,8 @@ jobs:
       - name: Direct-mode tests (v0.3)
         run: pytest tests/direct -p gltest -q
 
-      # Plan B's BenchJudgeB: GenVM v0.2 on Studionet, its own virtualenv and HOME-scoped SDK cache
-      - name: Plan B toolchain (v0.2)
+      # GenVM v0.2 on Studionet (BenchJudgeB and the preview sandbox): own virtualenv and HOME-scoped SDK cache
+      - name: Studionet toolchain (v0.2)
         run: |
           python -m venv /tmp/planb && /tmp/planb/bin/pip install -q -r requirements-plan-b.txt
           mkdir -p ~/.cache/plan-b/.cache/gltest-direct && cd ~/.cache/plan-b/.cache/gltest-direct
@@ -50,9 +50,10 @@ jobs:
             curl -sSfL -o genvm-universal-v0.2.12.tar.xz https://github.com/genlayerlabs/genvm/releases/download/v0.2.12/genvm-universal.tar.xz
           fi
           echo "4f0b358ec98ec148be9b95cdfb0f0e1a6cbe64da0194fdfac3fffc6f5d1d93e2  genvm-universal-v0.2.12.tar.xz" | sha256sum -c -
-      - name: Plan B lint + direct-mode tests (v0.2)
+      - name: Studionet contracts lint + direct-mode tests (v0.2)
         run: |
           env -u GENVM_VERSION HOME=$HOME/.cache/plan-b /tmp/planb/bin/genvm-lint check contracts/bench_judge_b.py
+          env -u GENVM_VERSION HOME=$HOME/.cache/plan-b /tmp/planb/bin/genvm-lint check contracts/studionet/bench_judge_preview.py
           env -u GENVM_VERSION HOME=$HOME/.cache/plan-b /tmp/planb/bin/pytest tests/direct_b -p gltest -q
 
   typescript:

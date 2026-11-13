@@ -1,8 +1,9 @@
 {
   "network": "bradbury",
-  "benchJudge": "0x9fe245f3De72685EAe6d4b36747E4BA3BC1360d9",
-  "deployTx": "0x470c05c358d7d2371e92cf17582008256706f07b2ee0e5a6b05b1072a61d5880",
-  "deployedAt": "2026-11-12T14:29:26.115Z",
+  "benchJudge": "0xa1Df17D40dE10a8CF4a6Cb7Ce3962C3304d775dE",
+  "deployTx": "0x42df6300ca2bf6bc1545a4c7f1f637580df4806036f3040a98b0422b8b412e04",
+  "deployedAt": "2026-11-13T16:42:13.959Z",
+  "source": "../contracts/bench_judge.py",
   "alkahest": {
     "eas": "0x250701601F3C76FDd6805576ed57988f678b9709",
     "easSchemaRegistry": "0x593b687a8066D0Def1A04f8De4A69855Fc6DCD24",
@@ -13,12 +14,5 @@
     "stringObligation": "0x16AEFA8873b486ea0a76267f9D06618a5B6DA7d2",
     "trustedOracleArbiter": "0xacE128D7dBC301D6b2a78f6b29c3417FaA2833C8",
     "trivialArbiter": "0x5e4F35d1F19c7345b607De0aC3A65Ffb9242BD8c"
-  },
-  "benchUsd": "0xbf977ee6d7299d32ae96d2d29e784b7455e898b9",
-  "benchUsdDeployTx": "0x4652e188361ff66673221387a761c5cd7d802b10d3a39fa474a33c51441a2fb4",
-  "gateProbe": {
-    "address": "0x0a97B54f262F03CE0Bd0B3B7b381fA770d57c74B",
-    "probeTx": "0x4b10a5c0f98834c68a003c7cd136719f359028169f52548a300ef5c5a12aa78c",
-    "arbitrationMadeEvmTx": "0xea509c8c9f21774826f9b5a0743c60d584d465308b5e0e3b2a39a0e0d802f2f9"
   }
 }

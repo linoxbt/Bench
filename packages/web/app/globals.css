@@ -193,3 +193,8 @@ body {
     animation: none;
   }
 }
+
+/* Dismissed announcement bar: hidden before first paint (see components/site/Announcement.tsx). */
+.announcement-dismissed .announcement {
+  display: none;
+}

@@ -49,6 +49,7 @@ describe("Plan B1 relayer", () => {
       wallet: wallet(relayerKey),
       publicClient: testClient as never,
       arbiter: cfg.addresses.trustedOracleArbiter,
+      eas: cfg.addresses.eas,
       log: () => {},
     });
 
@@ -66,8 +67,36 @@ describe("Plan B1 relayer", () => {
     expect(await relayer.tick()).toEqual([]);
 
     // A fresh relayer (e.g. after a restart that lost its cursor) must not re-send: arbitrate overwrites.
-    const restarted = new Relayer({ source, wallet: wallet(relayerKey), publicClient: testClient as never, arbiter: cfg.addresses.trustedOracleArbiter, log: () => {} });
+    const restarted = new Relayer({ source, wallet: wallet(relayerKey), publicClient: testClient as never, arbiter: cfg.addresses.trustedOracleArbiter, eas: cfg.addresses.eas, log: () => {} });
     const again = await restarted.tick();
     expect(again.every((r) => r.skipped && !r.hash)).toBe(true);
+  });
+
+  it("a case that fails to relay is parked and retried; it never blocks the cases after it", async () => {
+    const stuck = await openCase("Rain, take one");
+    const next = await openCase("Rain, take two");
+    const demandData = encodeNlaDemand(DEMAND);
+    const source = new FakeSource();
+    source.cases.push(
+      { id: stuck.fulfillmentUid, v: { ...stuck, demandData, fulfilled: true, reason: "r" } },
+      { id: next.fulfillmentUid, v: { ...next, demandData, fulfilled: false, reason: "r" } },
+    );
+    let broken = true;
+    const flaky: VerdictSource = {
+      count: () => source.count(),
+      ids: (a, b) => source.ids(a, b),
+      get: async (id) => {
+        if (broken && id === stuck.fulfillmentUid) throw new Error("GenLayer RPC timeout");
+        return source.get(id);
+      },
+    };
+    const relayer = new Relayer({ source: flaky, wallet: wallet(relayerKey), publicClient: testClient as never, arbiter: cfg.addresses.trustedOracleArbiter, eas: cfg.addresses.eas, log: () => {} });
+    const first = await relayer.tick();
+    expect(first.map((r) => r.fulfillmentUid)).toEqual([next.fulfillmentUid]); // the next case still went through
+    expect([...relayer.retry]).toEqual([stuck.fulfillmentUid]);
+    broken = false;
+    const second = await relayer.tick();
+    expect(second.map((r) => [r.fulfillmentUid, r.decision])).toEqual([[stuck.fulfillmentUid, true]]);
+    expect(relayer.retry.size).toBe(0);
   });
 });

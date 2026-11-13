@@ -1,16 +1,24 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Chevron, Close } from "./icons";
 
 const KEY = "bench-announcement-v2";
 
+/**
+ * Rendered on the server so the page doesn't jump when it appears. People who dismissed it get it hidden before
+ * the first paint by the inline script below (a class on <html>), so it never flashes either.
+ */
 export function Announcement() {
-  const [hidden, setHidden] = useState(true);
-  useEffect(() => setHidden(localStorage.getItem(KEY) === "1"), []);
+  const [hidden, setHidden] = useState(false);
   if (hidden) return null;
   return (
-    <div className="relative bg-wash text-sm">
+    <div className="announcement relative bg-wash text-sm">
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `try{if(localStorage.getItem(${JSON.stringify(KEY)})==="1")document.documentElement.classList.add("announcement-dismissed")}catch(e){}`,
+        }}
+      />
       <div className="mx-auto flex max-w-[1200px] items-center justify-center gap-3 px-12 py-2.5 text-center">
         <span className="text-ink">
           <span className="hidden sm:inline">Live on GenLayer Testnet Bradbury: real escrows, a real validator jury.</span>
@@ -26,6 +34,7 @@ export function Announcement() {
         aria-label="Dismiss announcement"
         onClick={() => {
           localStorage.setItem(KEY, "1");
+          document.documentElement.classList.add("announcement-dismissed");
           setHidden(true);
         }}
       >

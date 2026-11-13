@@ -10,11 +10,9 @@ import { testnetBradbury } from "genlayer-js/chains";
 import { createClient as createClientV02 } from "genlayer-js-v02";
 import { studionet } from "genlayer-js-v02/chains";
 import { TransactionHashVariant } from "genlayer-js/types";
+import { findArbitration, waitConfirmed } from "@bench/core/browser";
 import {
-  concat,
-  keccak256,
   parseAbi,
-  parseAbiItem,
   type Account,
   type Address,
   type Chain,
@@ -62,19 +60,24 @@ export function benchJudgeBSource(address: Address, network: "studionet" | "brad
 }
 
 const ARBITER_ABI = parseAbi(["function arbitrate(bytes32 fulfillmentUid, bytes demand, bool decision)"]);
-const ARBITRATION_MADE = parseAbiItem(
-  "event ArbitrationMade(bytes32 indexed decisionKey, bytes32 indexed fulfillmentUid, address indexed oracle, bool decision)",
-);
+const EAS_ABI = parseAbi([
+  "function getAttestation(bytes32 uid) view returns ((bytes32 uid, bytes32 schema, uint64 time, uint64 expirationTime, uint64 revocationTime, bytes32 refUID, address recipient, address attester, bool revocable, bytes data))",
+]);
+
+/** After this many failed sends a case is parked: skipped on later ticks until the relayer restarts. */
+const MAX_FAILURES = 5;
 
 export type RelayerConfig = {
   source: VerdictSource;
   wallet: WalletClient<Transport, Chain, Account>;
   publicClient: PublicClient;
   arbiter: Address;
-  /** First case index to look at (persist `cursor` between runs). */
+  /** EAS on the source chain: each escrow's creation time bounds the search for existing decisions. */
+  eas: Address;
+  /** First case index to look at (persist `cursor` and `retry` between runs). */
   cursor?: number;
-  /** Earliest source-chain block to search for existing decisions. */
-  fromBlock?: bigint;
+  /** Cases whose send failed earlier, retried every tick before new ones. */
+  retry?: string[];
   log?: (msg: string) => void;
 };
 
@@ -82,40 +85,57 @@ export type Relayed = { fulfillmentUid: Hex; decision: boolean; hash?: Hex; skip
 
 export class Relayer {
   cursor: number;
+  /** Failed cases, retried every tick: one stuck case never blocks the ones after it. */
+  retry: Set<string>;
+  private readonly failures = new Map<string, number>();
   private readonly sent = new Set<string>();
   constructor(private readonly cfg: RelayerConfig) {
     this.cursor = cfg.cursor ?? 0;
+    this.retry = new Set(cfg.retry ?? []);
   }
 
   private log(msg: string) {
     (this.cfg.log ?? console.log)(`[relayer] ${msg}`);
   }
 
-  /** Whether this oracle already decided this (fulfillment, demand) on the source chain. */
+  /** Whether this oracle already decided this (fulfillment, demand) on the source chain (latest ArbitrationMade). */
   async alreadyDecided(v: FinalVerdict): Promise<boolean> {
-    const decisionKey = keccak256(concat([v.fulfillmentUid, v.demandData]));
-    const logs = await this.cfg.publicClient.getLogs({
-      address: this.cfg.arbiter,
-      event: ARBITRATION_MADE,
-      args: { decisionKey, fulfillmentUid: v.fulfillmentUid, oracle: this.cfg.wallet.account.address },
-      fromBlock: this.cfg.fromBlock ?? 0n,
-      toBlock: "latest",
-    });
-    return logs.length > 0;
+    const att = await this.cfg.publicClient.readContract({ address: this.cfg.eas, abi: EAS_ABI, functionName: "getAttestation", args: [v.escrowUid] });
+    // A decision can only follow the escrow: scan (in chunks) from its creation, not from block 0.
+    const found = await findArbitration(this.cfg.publicClient, this.cfg.arbiter, v.fulfillmentUid, this.cfg.wallet.account.address, v.demandData, att.time);
+    return found !== undefined;
   }
 
-  /** One pass: relay every finalized verdict from `cursor` on. Advances the cursor past settled cases. */
+  /** Relay one case by id; a failure parks it in `retry` (up to MAX_FAILURES attempts) instead of throwing. */
+  private async attempt(id: string, out: Relayed[]) {
+    try {
+      const v = await this.cfg.source.get(id);
+      if (v) out.push(await this.relayOne(v));
+      this.retry.delete(id);
+      this.failures.delete(id);
+    } catch (e) {
+      const n = (this.failures.get(id) ?? 0) + 1;
+      this.failures.set(id, n);
+      if (n >= MAX_FAILURES) {
+        this.retry.delete(id);
+        this.log(`${id}: giving up after ${n} failures (${e instanceof Error ? e.message.split("\n")[0] : e}); restart to retry`);
+      } else {
+        this.retry.add(id);
+        this.log(`${id}: send failed (${n}/${MAX_FAILURES}), will retry: ${e instanceof Error ? e.message.split("\n")[0] : e}`);
+      }
+    }
+  }
+
+  /** One pass: retry parked cases, then relay every finalized verdict from `cursor` on. */
   async tick(batch = 50): Promise<Relayed[]> {
     const out: Relayed[] = [];
+    for (const id of [...this.retry]) await this.attempt(id, out);
     const total = await this.cfg.source.count();
     while (this.cursor < total) {
       const ids = await this.cfg.source.ids(this.cursor, batch);
       if (ids.length === 0) break;
       for (const id of ids) {
-        if (!id.startsWith("preview:")) {
-          const v = await this.cfg.source.get(id);
-          if (v) out.push(await this.relayOne(v));
-        }
+        if (!id.startsWith("preview:")) await this.attempt(id, out);
         this.cursor++;
       }
     }
@@ -134,7 +154,7 @@ export class Relayer {
       functionName: "arbitrate",
       args: [v.fulfillmentUid, v.demandData, v.fulfilled],
     });
-    await this.cfg.publicClient.waitForTransactionReceipt({ hash });
+    await waitConfirmed(this.cfg.publicClient, hash, "arbitrate");
     this.sent.add(key);
     this.log(`${v.fulfillmentUid} -> ${v.fulfilled} (${v.reason}) tx ${hash}`);
     return { fulfillmentUid: v.fulfillmentUid, decision: v.fulfilled, hash };

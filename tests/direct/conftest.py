@@ -35,3 +35,24 @@ def _run_nondet_v03(vm, data):
 
 
 wasi_mock._handle_run_nondet = _run_nondet_v03
+
+
+import sys
+
+import gltest.direct.vm as direct_vm_module
+
+_warp = direct_vm_module.VMContext.warp
+
+
+def _warp_and_sync(self, timestamp: str) -> None:
+    # genlayer-test 0.30's warp() stores the time but never pushes it into the loaded v0.3 message module,
+    # so contracts keep seeing the time of import. Push it, as the harness does for sender and value.
+    _warp(self, timestamp)
+    mod = sys.modules.get("genlayer.message")
+    if mod is not None:
+        mod.datetime = timestamp
+        if isinstance(getattr(mod, "raw", None), dict):
+            mod.raw["datetime"] = timestamp
+
+
+direct_vm_module.VMContext.warp = _warp_and_sync

@@ -75,11 +75,13 @@ export default function Preview() {
       if (!c || typeof c.fulfilled !== "boolean") {
         throw new Error(`The jury produced no verdict (${tx.txExecutionResultName ?? tx.statusName}). Check the tx on the explorer.`);
       }
-      const votes = tx.lastRound?.validatorVotesName;
+      // Studionet receipts carry a votes map (the leader votes too); Bradbury-style ones carry per-round names.
+      const map = (tx as { consensus_data?: { votes?: Record<string, string> } }).consensus_data?.votes;
+      const names = map ? Object.values(map).map((v) => String(v).toUpperCase()) : tx.lastRound?.validatorVotesName?.map(String);
       setResult({
         verdict: c,
         hash: String(hash),
-        votes: votes ? `${votes.filter((v) => v === "AGREE").length}/${votes.length} validators agreed` : undefined,
+        votes: names?.length ? `${names.filter((v) => v === "AGREE").length}/${names.length} validators agreed` : undefined,
         caseId: `preview:${id}`,
       });
     } catch (e) {

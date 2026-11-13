@@ -10,6 +10,9 @@ coverage/
 __pycache__/
 .pytest_cache/
 .venv/
+.venv-b/
+.bench/
+.relayer-state.json*
 venv/
 gltest.config.local.yaml
 .vercel/

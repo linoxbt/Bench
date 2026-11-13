@@ -24,7 +24,10 @@ for pair in \
   CommitRevealObligation:$(addr_of commitRevealObligation) \
   EAS:$(addr_of eas); do
   name=${pair%%:*}; addr=${pair##*:}
-  code=$(rpc "$RPC" "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"eth_getCode\",\"params\":[\"$addr\",\"latest\"]}" | sed -E 's/.*"result":"([^"]*)".*/\1/')
+  resp=$(rpc "$RPC" "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"eth_getCode\",\"params\":[\"$addr\",\"latest\"]}")
+  # Only a well-formed "result":"0x..." counts; an error body or an empty answer is a failure, not "has code".
+  code=$(printf '%s' "$resp" | grep -oE '"result":"0x[0-9a-fA-F]*"' | sed -E 's/"result":"(0x[0-9a-fA-F]*)"/\1/')
+  [ -n "$code" ] || code=0x
   bytes=$(( (${#code} - 2) / 2 ))
   if [ "$bytes" -gt 0 ]; then echo "  ok   $name $addr ($bytes bytes)"; else echo "  FAIL $name $addr has no code"; fail=1; fi
 done

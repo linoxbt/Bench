@@ -22,21 +22,39 @@ export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as cons
  * The oracle named in escrows. Plan A: BenchJudge's address on Testnet Bradbury (`pnpm deploy:judge`).
  * Plan B: the relayer key's address or the BenchBridgeReceiver; BenchJudgeB's own address is BENCH_JUDGE_B.
  */
-const env = (name: string): string | undefined => (typeof process !== "undefined" ? process.env?.[name] : undefined);
-const envAddress = (v: string | undefined): Address => getAddress((v ?? ZERO_ADDRESS).toLowerCase());
+/** A blank variable (`BENCH_USD=` in a copied .env) counts as unset. */
+const env = (name: string): string | undefined => {
+  const v = typeof process !== "undefined" ? process.env?.[name] : undefined;
+  return v && v.trim() ? v.trim() : undefined;
+};
 
-export const BENCH_JUDGE = envAddress(env("BENCH_JUDGE") ?? env("NEXT_PUBLIC_BENCH_JUDGE"));
+/** Values that are set but aren't addresses: reported when a command needs them, never at import (so --help works). */
+const INVALID: Record<string, string> = {};
+const envAddress = (names: string[]): Address => {
+  for (const n of names) {
+    const v = env(n);
+    if (v === undefined) continue;
+    try {
+      return getAddress(v.toLowerCase());
+    } catch {
+      INVALID[n] = v;
+      return ZERO_ADDRESS;
+    }
+  }
+  return ZERO_ADDRESS;
+};
+
+export const BENCH_JUDGE = envAddress(["BENCH_JUDGE", "NEXT_PUBLIC_BENCH_JUDGE"]);
 
 /** BenchUSD demo token on chain 4221. Set after deploying contracts/evm/BenchUSD.sol. */
-export const BENCH_USD = envAddress(env("BENCH_USD") ?? env("NEXT_PUBLIC_BENCH_USD"));
+export const BENCH_USD = envAddress(["BENCH_USD", "NEXT_PUBLIC_BENCH_USD"]);
 
 /** Plan B: BenchJudgeB on GenLayer (`pnpm deploy:judge-b`). */
-export const BENCH_JUDGE_B = envAddress(env("BENCH_JUDGE_B"));
+export const BENCH_JUDGE_B = envAddress(["BENCH_JUDGE_B"]);
 
 export function requireDeployed(name: string, address: Address): Address {
-  if (address.toLowerCase() === ZERO_ADDRESS) {
-    const v = { BenchJudge: "BENCH_JUDGE", BenchJudgeB: "BENCH_JUDGE_B", BenchUSD: "BENCH_USD" }[name] ?? name;
-    throw new Error(`${name} is not set. Export ${v} (see README).`);
-  }
+  const v = { BenchJudge: "BENCH_JUDGE", BenchJudgeB: "BENCH_JUDGE_B", BenchUSD: "BENCH_USD" }[name] ?? name;
+  if (INVALID[v] !== undefined) throw new Error(`${v} is set to "${INVALID[v]}", which isn't an address.`);
+  if (address.toLowerCase() === ZERO_ADDRESS) throw new Error(`${name} is not set. Export ${v} (see README).`);
   return address;
 }

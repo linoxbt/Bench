@@ -136,6 +136,7 @@ async function main() {
     await page.fill("textarea >> nth=0", DEMAND.demand);
     await page.fill("textarea >> nth=1", DEMAND.rubric);
     await page.fill('input >> nth=0', "25");
+    await page.fill('input[placeholder="0x… (the seller\'s wallet)"]', DEV_ACCOUNT); // hired work: name the seller
     await page.click('button:has-text("Approve & lock escrow")');
     await page.waitForSelector("text=Escrow locked", { timeout: 90000 });
     const escrowUid = (await page.getAttribute('p:has-text("escrowUid") span[title]', "title"))!;
@@ -152,7 +153,7 @@ async function main() {
     await step("06-delivered");
 
     // 5. The verdict (BenchJudge impersonated on the local chain), then collect in the browser
-    await benchJudgeArbitrates(cfg, fulfillmentUid as `0x${string}`, DEMAND, true);
+    await benchJudgeArbitrates(cfg, fulfillmentUid as `0x${string}`, { ...DEMAND, seller: DEV_ACCOUNT }, true); // same terms the escrow carries
     await page.goto(`${base}/case/${escrowUid}/${fulfillmentUid}`, { waitUntil: "networkidle" });
     await page.waitForSelector("text=ArbitrationMade: true");
     await page.click('button:has-text("Collect (seller)")');

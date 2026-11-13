@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { Hex } from "viem";
-import { genvmTxUrl, LIMITS } from "@bench/core/browser";
+import { notFound } from "next/navigation";
+import { BRADBURY_EXPLORER, STUDIO_EXPLORER, genvmTxUrl, LIMITS } from "@bench/core/browser";
 import { CopyLink } from "@/components/CopyLink";
 import { JuryPanel } from "@/components/JuryPanel";
 import { Container } from "@/components/site/blocks";
 import { Card, Hash, Note, Stamp } from "@/components/ui";
-import { readVerdict } from "@/lib/read";
+import { readVerdict, validCaseId } from "@/lib/read";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ const TX = /^0x[0-9a-fA-F]{64}$/;
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const id = decodeURIComponent((await params).id);
+  if (!validCaseId(id)) return { title: "Verdict not found" };
   const v = await readVerdict(id);
   const c = "ok" in v.verdict ? v.verdict.ok : undefined;
   const title = c ? `${c.fulfilled ? "Fulfilled" : "Not fulfilled"}: ${c.demand.slice(0, 60)}` : "Verdict";
@@ -24,12 +26,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function VerdictPage({ params, searchParams }: Props) {
   const id = decodeURIComponent((await params).id);
+  if (!validCaseId(id)) notFound();
   const { tx } = await searchParams;
   const txHash = tx && TX.test(tx) ? (tx.toLowerCase() as Hex) : undefined;
   const v = await readVerdict(id, txHash);
   const c = "ok" in v.verdict ? v.verdict.ok : undefined;
   const jury = v.jury && "ok" in v.jury ? v.jury.ok : undefined;
-  const explorer = v.network === "studionet" ? "https://explorer-studio.genlayer.com" : "https://explorer-bradbury.genlayer.com";
+  const explorer = v.network === "studionet" ? STUDIO_EXPLORER : BRADBURY_EXPLORER;
 
   return (
     <Container className="pb-24">
@@ -57,7 +60,15 @@ export default async function VerdictPage({ params, searchParams }: Props) {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_22rem]">
           <div className="space-y-6">
             <Card title="The verdict">
-              <Stamp fulfilled={c.fulfilled} reason={c.reason} />
+              <Stamp fulfilled={c.fulfilled} reason={c.reason ? `Leader's reason: ${c.reason}` : undefined} />
+              <p className="mt-3 text-xs text-muted">
+                {c.status === "preview"
+                  ? "A preview: no money was involved."
+                  : v.final
+                    ? "Final: the appeal window has closed."
+                    : "Accepted, in the appeal window: not final yet."}{" "}
+                Validators vote on fulfilled / not fulfilled; the reason is the leader&apos;s wording.
+              </p>
             </Card>
             <Card title="The jury" right={txHash && <Hash value={txHash} href={genvmTxUrl(txHash, v.network)} />}>
               {jury ? (

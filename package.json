@@ -14,7 +14,7 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "lint:contract": "GENVM_VERSION=v0.6.0-rc13 python scripts/genvm_lint.py contracts/bench_judge.py && GENVM_VERSION=v0.6.0-rc13 python scripts/genvm_lint.py contracts/probe/gate_probe.py",
-    "lint:contract-b": "genvm-lint check contracts/bench_judge_b.py",
+    "lint:contract-b": "genvm-lint check contracts/bench_judge_b.py && genvm-lint check contracts/studionet/bench_judge_preview.py",
     "test:contract": "GENVM_VERSION=v0.6.0-rc13 pytest tests/direct -p gltest",
     "test:contract-b": "pytest tests/direct_b -p gltest",
     "e2e": "vitest run --config tests/e2e/vitest.config.ts",

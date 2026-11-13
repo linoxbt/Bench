@@ -25,12 +25,14 @@ TrustedOracleArbiter on GenLayer Testnet Bradbury: no relayer, no single model, 
 
 ## Setup
 
-    git clone <repo> bench && cd bench
+    git clone https://github.com/linoxbt/Bench bench && cd bench
     pnpm install && pnpm build
-    export BENCH_JUDGE=<BenchJudge address from the README>
-    export BENCH_USD=<demo token address from the README>
+    export BENCH_JUDGE=0xa1Df17D40dE10a8CF4a6Cb7Ce3962C3304d775dE   # BenchJudge on Testnet Bradbury
+    export BENCH_USD=0xbf977ee6d7299d32ae96d2d29e784b7455e898b9     # bUSD demo token (free test token, no value)
     export BENCH_BUYER_KEY=...   # or BENCH_SELLER_KEY; set by the user, never pasted into chat
     alias bench="node $(pwd)/packages/cli/dist/index.js"
+
+The current addresses are also in the README and deployments/bradbury.json.
 
 GEN for gas comes from testnet-faucet.genlayer.foundation (100 GEN per address per 24 h). Opening a case
 needs a fee deposit of about 0.1 GEN; nearly all of it is refunded.
@@ -38,24 +40,33 @@ Add `--json` to any command for machine-readable output.
 
 ## Buyer flow
 
-1. `bench escrow --demand "<plain-English requirements>" --rubric "<how to judge>" --amount 50 --expires 24h`
-   - The expiry must outlast delivery + GenLayer finality (a few minutes on Bradbury) + any appeals. 24h is a safe default.
-2. Share the escrowUid, the demand and the rubric with the seller.
+1. `bench escrow --demand "<plain-English requirements>" --rubric "<how to judge>" --amount 50 --expires 24h --seller <address>`
+   - Name the seller for hired work: only their deliveries are judged, so nobody can copy their revealed work and race them.
+     Leave `--seller` out only for an open bounty (anyone may deliver), and say that risk to the user.
+   - `--tries <1-10>` (default 3): how many deliveries the jury will judge for this escrow. No more cases after a true verdict.
+   - The expiry must be at least 30m and outlast delivery + GenLayer finality (minutes) + any appeals. 24h is the safe default.
+2. Share the escrowUid, the demand, the rubric and the terms with the seller.
 3. If the verdict is NOT FULFILLED: `bench reclaim --escrow <uid>` once the escrow has expired.
 
 ## Seller flow
 
 1. `bench deliver --escrow <uid> --text "<work or a link to it>"` (or `--file <path>`). Prints a fulfillmentUid.
-2. `bench judge --escrow <uid> --fulfillment <uid>`: opens the case on BenchJudge and prints the GenLayer tx.
-3. `bench status --escrow <uid> --fulfillment <uid> --tx <hash> --wait` until FINALIZED and the verdict lands.
-4. If FULFILLED: `bench collect --escrow <uid> --fulfillment <uid>`.
+   If it is interrupted after the commit, run `bench deliver --escrow <uid>` again: it resumes from the saved record.
+   Linked pages must be reachable: an unreachable page reverts the case (nothing recorded) until it is up.
+2. `bench judge --escrow <uid> --fulfillment <uid>`: checks for free that BenchJudge will hear the case, then opens it
+   (fee deposit ~0.1 GEN, mostly refunded) and prints the GenLayer tx as soon as it is sent.
+3. `bench status --escrow <uid> --fulfillment <uid> --tx <hash> --wait` waits for FINALIZED, then for the verdict on Alkahest.
+4. If FULFILLED: `bench collect --escrow <uid> --fulfillment <uid>` (before the escrow expires).
 
 ## Dispute or retry
 
-- Disagree with a verdict before finality: `bench appeal --tx <hash>` (a larger jury re-judges).
-- Try a demand safely first: `BENCH_NETWORK=studionet BENCH_JUDGE=0x991Cf014F556D779c0Da83867B0900d88Fe2C4e7 bench preview --demand "..." --delivery "..."`
+- Disagree with a verdict before finality: `bench appeal --tx <hash>` shows the bond; `--yes` pays it (a larger jury re-judges).
+  The appeal window on Bradbury is short (about a minute after ACCEPTED), so appeal right away.
+- A verdict that never reached Alkahest: `bench resend --fulfillment <uid>` re-emits the recorded decision (same verdict).
+- Try a demand safely first: `BENCH_NETWORK=studionet bench --judge 0x364B283843F500250A3FdbB22B5646C61F2d845a preview --demand "..." --delivery "..."`
   (the public Studionet sandbox: no funds, no escrow), or https://bench-ivory.vercel.app/preview in a browser.
-- A seller can deliver again against the same open escrow; each delivery is judged once.
+- A seller can deliver again against the same escrow up to its `tries`; each delivery is judged once, and the same content
+  is never judged twice for one escrow.
 
 ## Trust model (say this when asked)
 
@@ -65,4 +76,5 @@ Add `--json` to any command for machine-readable output.
 - Verdict delivery: BenchJudge's own external message on GenLayer Chain (msg.sender = BenchJudge),
   sent only after finality, at most once per delivery.
 - Trusted: the buyer's wording of the demand and rubric (the seller should read both first).
+- The verdict's one-line reason is the leader's wording; validators vote on fulfilled / not fulfilled only.
 - Not trusted: the seller, any single model, any relayer.

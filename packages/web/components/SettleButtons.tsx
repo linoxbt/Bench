@@ -2,7 +2,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Hex } from "viem";
-import { collectLite, reclaimLite } from "@bench/core/browser";
+import { collectLite, reclaimLite, waitConfirmed } from "@bench/core/browser";
 import { errorText, useWallet } from "@/components/wallet/WalletProvider";
 import { publicClient, txUrl } from "@/lib/chain";
 import { PUBLIC } from "@/lib/config";
@@ -33,7 +33,7 @@ export function SettleButtons({
         kind === "collect"
           ? await collectLite(w, PUBLIC.alkahest, escrowUid, fulfillmentUid)
           : await reclaimLite(w, PUBLIC.alkahest, escrowUid);
-      await publicClient.waitForTransactionReceipt({ hash });
+      await waitConfirmed(publicClient, hash, kind === "collect" ? "Collect" : "Reclaim");
       setTx(hash);
       router.refresh(); // show the settled escrow right away
     } catch (e) {

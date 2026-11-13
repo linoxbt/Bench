@@ -2,8 +2,8 @@
  * Wallet-side Alkahest calls with plain viem, for the browser: alkahest-ts bundles @viem/anvil (Node-only)
  * and ~15 MB of artifacts. ABIs match Alkahest's ERC20EscrowObligation and EAS (checked by tests/local/lite.test.ts).
  */
-import { encodePacked, keccak256, parseAbi, parseAbiItem, parseEventLogs, toHex, type Account, type Address, type Chain, type Hex, type PublicClient, type Transport, type WalletClient } from "viem";
-import { decodeNlaDemand, decodeOracleDemand, encodeBenchDemand, type BenchDemand } from "./demand.js";
+import { bytesToHex, encodePacked, keccak256, parseAbi, parseAbiItem, parseEventLogs, toHex, type Account, type Address, type Chain, type Hex, type PublicClient, type Transport, type WalletClient } from "viem";
+import { decodeNlaDemand, decodeOracleDemand, demandProblems, encodeBenchDemand, parseBenchTerms, type BenchDemand } from "./demand.js";
 
 export const ESCROW_ABI = parseAbi([
   "function doObligation((address arbiter, bytes demand, address token, uint256 amount) data, uint64 expirationTime) returns (bytes32)",
@@ -49,6 +49,16 @@ export type LiteAddresses = {
 };
 type Wallet = WalletClient<Transport, Chain, Account>;
 
+/**
+ * Wait for a transaction and fail loudly if it reverted: viem's receipt wait resolves on reverts too, so a failed
+ * approve, lock, commit, reveal, collect or reclaim would otherwise look like success.
+ */
+export async function waitConfirmed(pub: Pick<PublicClient, "waitForTransactionReceipt">, hash: Hex, what = "Transaction") {
+  const receipt = await pub.waitForTransactionReceipt({ hash });
+  if (receipt.status !== "success") throw new Error(`${what} reverted on chain (tx ${hash}).`);
+  return receipt;
+}
+
 export async function createEscrowLite(
   wallet: Wallet,
   pub: PublicClient,
@@ -59,11 +69,17 @@ export async function createEscrowLite(
   d: BenchDemand,
   expiration: bigint,
 ): Promise<{ escrowUid: Hex; hash: Hex }> {
+  const problems = demandProblems(d);
+  if (problems.length) throw new Error(problems.join(" "));
+  if (amount <= 0n) throw new Error("Amount must be greater than zero.");
+  if (expiration === 0n) throw new Error("An expiry of 0 disables reclaim; set one.");
   const owner = wallet.account.address;
+  const balance = await pub.readContract({ address: token, abi: ERC20_ABI, functionName: "balanceOf", args: [owner] });
+  if (balance < amount) throw new Error("Your token balance is lower than the amount to lock.");
   const allowance = await pub.readContract({ address: token, abi: ERC20_ABI, functionName: "allowance", args: [owner, a.erc20EscrowObligation] });
   if (allowance < amount) {
     const approve = await wallet.writeContract({ address: token, abi: ERC20_ABI, functionName: "approve", args: [a.erc20EscrowObligation, amount] });
-    await pub.waitForTransactionReceipt({ hash: approve });
+    await waitConfirmed(pub, approve, "Approve");
   }
   const hash = await wallet.writeContract({
     address: a.erc20EscrowObligation,
@@ -71,7 +87,7 @@ export async function createEscrowLite(
     functionName: "doObligation",
     args: [{ arbiter: a.trustedOracleArbiter, demand: encodeBenchDemand(judge, d), token, amount }, expiration],
   });
-  const receipt = await pub.waitForTransactionReceipt({ hash });
+  const receipt = await waitConfirmed(pub, hash, "Lock");
   const [attested] = parseEventLogs({ abi: EAS_EVENTS, logs: receipt.logs, eventName: "Attested" });
   if (!attested) throw new Error(`Escrow tx ${hash} emitted no Attested event`);
   return { escrowUid: attested.args.uid, hash };
@@ -85,7 +101,37 @@ export async function reclaimLite(wallet: Wallet, a: LiteAddresses, escrowUid: H
   return wallet.writeContract({ address: a.erc20EscrowObligation, abi: ESCROW_ABI, functionName: "reclaim", args: [escrowUid] });
 }
 
-/** Seller: Arkhai commit-reveal delivery from a browser wallet (same flow as `bench deliver`). */
+/**
+ * Everything needed to finish a delivery after the commit: save it (localStorage, a file) before committing, so a
+ * closed tab, a rejected prompt or a timeout never loses the salt and the commit bond.
+ */
+export type SavedCommit = {
+  escrowUid: Hex;
+  claimer: Address;
+  payload: Hex;
+  salt: Hex;
+  schema: Hex;
+  commitment: Hex;
+  commitHash?: Hex;
+  commitBlock?: string; // bigint as a decimal string, so the record stays JSON
+};
+
+export const DELIVERY_SCHEMA_TAG = keccak256(toHex("{item:string}"));
+
+/** A fresh delivery record with a cryptographically random salt. */
+export async function prepareDelivery(pub: PublicClient, a: LiteAddresses, claimer: Address, escrowUid: Hex, delivery: string): Promise<SavedCommit> {
+  const cr = a.commitRevealObligation;
+  if (!cr) throw new Error("commitRevealObligation address missing");
+  const salt = bytesToHex(crypto.getRandomValues(new Uint8Array(32)));
+  const data = { payload: toHex(delivery), salt, schema: DELIVERY_SCHEMA_TAG };
+  const commitment = await pub.readContract({ address: cr, abi: COMMIT_REVEAL_ABI, functionName: "computeCommitment", args: [claimer, escrowUid, data] });
+  return { escrowUid, claimer, ...data, commitment };
+}
+
+/**
+ * Seller: Arkhai commit-reveal delivery (same flow as `nla escrow:fulfill`), resumable. Pass `saved` from an earlier,
+ * interrupted attempt to skip the commit and only reveal; `onSaved` gets the record before every step that matters.
+ */
 export async function deliverLite(
   wallet: Wallet,
   pub: PublicClient,
@@ -93,21 +139,29 @@ export async function deliverLite(
   escrowUid: Hex,
   delivery: string,
   onStep?: (step: "commit" | "wait" | "reveal") => void,
+  opts: { saved?: SavedCommit; onSaved?: (s: SavedCommit) => void } = {},
 ): Promise<{ fulfillmentUid: Hex; commitHash: Hex; revealHash: Hex }> {
   const cr = a.commitRevealObligation;
   if (!cr) throw new Error("commitRevealObligation address missing");
-  const salt = keccak256(toHex(`${Date.now()}-${Math.random()}-${wallet.account.address}`));
-  const data = { payload: toHex(delivery), salt, schema: keccak256(toHex("{item:string}")) };
-  const commitment = await pub.readContract({
-    address: cr,
-    abi: COMMIT_REVEAL_ABI,
-    functionName: "computeCommitment",
-    args: [wallet.account.address, escrowUid, data],
-  });
-  onStep?.("commit");
-  const commitHash = await wallet.writeContract({ address: cr, abi: COMMIT_REVEAL_ABI, functionName: "commit", args: [commitment, 3600n], value: 1n });
-  const committed = await pub.waitForTransactionReceipt({ hash: commitHash });
+  let saved = opts.saved;
+  if (saved && (saved.escrowUid.toLowerCase() !== escrowUid.toLowerCase() || saved.claimer.toLowerCase() !== wallet.account.address.toLowerCase())) {
+    throw new Error("The saved delivery is for another escrow or wallet.");
+  }
+  if (!saved) {
+    saved = await prepareDelivery(pub, a, wallet.account.address, escrowUid, delivery);
+    opts.onSaved?.(saved);
+  }
+  if (!saved.commitHash) {
+    onStep?.("commit");
+    const commitHash = await wallet.writeContract({ address: cr, abi: COMMIT_REVEAL_ABI, functionName: "commit", args: [saved.commitment, 3600n], value: 1n });
+    saved = { ...saved, commitHash };
+    opts.onSaved?.(saved);
+  }
+  const committed = await waitConfirmed(pub, saved.commitHash!, "Commit");
+  saved = { ...saved, commitBlock: committed.blockNumber.toString() };
+  opts.onSaved?.(saved);
   onStep?.("wait");
+  const data = { payload: saved.payload, salt: saved.salt, schema: saved.schema };
   const reveal = { address: cr, abi: COMMIT_REVEAL_ABI, functionName: "doObligation", args: [data, escrowUid] } as const;
   const revealHash = await revealWhenReady(pub, committed.blockNumber, async () => {
     // Simulate against the public RPC first: it returns the revert reason (wallets often drop it), and the
@@ -116,10 +170,10 @@ export async function deliverLite(
     onStep?.("reveal");
     return wallet.writeContract(reveal);
   });
-  const receipt = await pub.waitForTransactionReceipt({ hash: revealHash });
+  const receipt = await waitConfirmed(pub, revealHash, "Reveal");
   const [attested] = parseEventLogs({ abi: EAS_EVENTS, logs: receipt.logs, eventName: "Attested" });
   if (!attested) throw new Error(`Reveal tx ${revealHash} emitted no Attested event`);
-  return { fulfillmentUid: attested.args.uid, commitHash, revealHash };
+  return { fulfillmentUid: attested.args.uid, commitHash: saved.commitHash!, revealHash };
 }
 
 /**
@@ -175,24 +229,77 @@ const ARBITRATION_MADE = parseAbiItem(
   "event ArbitrationMade(bytes32 indexed decisionKey, bytes32 indexed fulfillmentUid, address indexed oracle, bool decision)",
 );
 
+/** Logs in chunks: public RPCs (e.g. Base Sepolia's) refuse very wide ranges. */
+async function getLogsChunked<T>(
+  pub: Pick<PublicClient, "getBlockNumber">,
+  fromBlock: bigint,
+  fetch: (from: bigint, to: bigint) => Promise<T[]>,
+  chunk = 50_000n,
+): Promise<T[]> {
+  const head = await pub.getBlockNumber({ cacheTime: 0 });
+  const out: T[] = [];
+  for (let from = fromBlock; from <= head; from += chunk) {
+    const to = from + chunk - 1n < head ? from + chunk - 1n : head;
+    out.push(...(await fetch(from, to)));
+  }
+  return out;
+}
+
 /**
  * The oracle's latest decision on a delivery, from TrustedOracleArbiter's ArbitrationMade events (its decision map
- * is private, and a stored `false` looks like "not decided"). `since` (unix seconds, e.g. the escrow's creation)
- * bounds the scan; without it the whole chain is scanned.
+ * is private, and a stored `false` looks like "not decided"). `since` (unix seconds, the escrow's creation) bounds
+ * the scan: a verdict can only follow the escrow.
  */
 export async function findArbitration(
-  pub: Pick<PublicClient, "getBlock" | "getLogs">,
+  pub: Pick<PublicClient, "getBlock" | "getLogs" | "getBlockNumber">,
   arbiter: Address,
   fulfillmentUid: Hex,
   oracle: Address,
   demandData: Hex,
-  since?: bigint,
-): Promise<{ decision: boolean; oracle: Address } | undefined> {
+  since: bigint,
+): Promise<{ decision: boolean; oracle: Address; txHash: Hex } | undefined> {
   const decisionKey = keccak256(encodePacked(["bytes32", "bytes"], [fulfillmentUid, demandData]));
-  const fromBlock = since === undefined ? 0n : await blockAtOrBefore(pub, since);
-  const logs = await pub.getLogs({ address: arbiter, event: ARBITRATION_MADE, args: { decisionKey, fulfillmentUid, oracle }, fromBlock });
+  const fromBlock = await blockAtOrBefore(pub, since);
+  const logs = await getLogsChunked(pub, fromBlock, (from, to) =>
+    pub.getLogs({ address: arbiter, event: ARBITRATION_MADE, args: { decisionKey, fulfillmentUid, oracle }, fromBlock: from, toBlock: to }),
+  );
   const last = logs.at(-1);
-  return last ? { decision: Boolean(last.args.decision), oracle } : undefined;
+  return last ? { decision: Boolean(last.args.decision), oracle, txHash: last.transactionHash } : undefined;
+}
+
+/**
+ * Deliveries made against an escrow (CommitRevealObligation attestations whose refUID is the escrow), oldest first.
+ * EAS doesn't index refUID, so this scans CommitReveal's Attested events from the escrow's creation and checks each.
+ */
+export async function findDeliveries(
+  pub: PublicClient,
+  a: LiteAddresses,
+  escrowUid: Hex,
+  since: bigint,
+): Promise<{ fulfillmentUid: Hex; recipient: Address; revoked: boolean }[]> {
+  const eas = a.eas;
+  const cr = a.commitRevealObligation;
+  if (!eas || !cr) throw new Error("eas / commitRevealObligation address missing");
+  const fromBlock = await blockAtOrBefore(pub, since);
+  const logs = await getLogsChunked(pub, fromBlock, (from, to) =>
+    pub.getLogs({ address: eas, event: EAS_EVENTS[0], args: { attester: cr }, fromBlock: from, toBlock: to }),
+  );
+  const out: { fulfillmentUid: Hex; recipient: Address; revoked: boolean }[] = [];
+  for (const log of logs) {
+    const uid = log.args.uid as Hex;
+    const att = await pub.readContract({ address: eas, abi: EAS_VIEW_ABI, functionName: "getAttestation", args: [uid] });
+    if (att.refUID.toLowerCase() === escrowUid.toLowerCase()) out.push({ fulfillmentUid: uid, recipient: att.recipient, revoked: att.revocationTime !== 0n });
+  }
+  return out;
+}
+
+/** An ERC20's symbol and decimals, so amounts are never shown with the wrong scale. */
+export async function readTokenLite(pub: PublicClient, token: Address): Promise<{ symbol: string; decimals: number }> {
+  const [symbol, decimals] = await Promise.all([
+    pub.readContract({ address: token, abi: ERC20_ABI, functionName: "symbol" }).catch(() => "?"),
+    pub.readContract({ address: token, abi: ERC20_ABI, functionName: "decimals" }),
+  ]);
+  return { symbol, decimals: Number(decimals) };
 }
 
 export type EscrowView = {
@@ -205,7 +312,11 @@ export type EscrowView = {
   demand: string;
   rubric: string;
   provider: string;
+  /** Bench terms from the escrow: only `seller` may deliver (if set); at most `tries` deliveries are judged. */
+  seller?: Address;
+  tries: number;
   expirationTime: bigint;
+  createdAt: bigint;
   revoked: boolean;
 };
 
@@ -233,7 +344,9 @@ export async function readEscrowLite(pub: PublicClient, a: LiteAddresses, escrow
     demand: nla.demand,
     rubric: nla.arbitrationPrompt,
     provider: nla.arbitrationProvider,
+    ...parseBenchTerms(nla.arbitrationModel),
     expirationTime: att.expirationTime,
+    createdAt: att.time,
     revoked: att.revocationTime !== 0n,
   };
 }

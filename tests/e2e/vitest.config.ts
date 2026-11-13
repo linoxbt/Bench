@@ -3,7 +3,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     include: ["tests/e2e/**/*.test.ts"],
-    testTimeout: 3 * 60 * 60 * 1000, // Bradbury finality (~30 min) plus appeal windows
+    testTimeout: 90 * 60 * 1000, // finality (minutes on Bradbury) + a 30-minute escrow expiry for the reclaim case
     hookTimeout: 10 * 60 * 1000,
     fileParallelism: false,
   },

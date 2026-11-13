@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { createPublicClient, http, type Address } from "viem";
 import { baseSepolia } from "viem/chains";
-import { ALKAHEST_BASE_SEPOLIA, genlayerChain } from "@bench/core/browser";
+import { ALKAHEST_BASE_SEPOLIA, BRADBURY_EXPLORER, GENLAYER_CHAIN_EXPLORER, STUDIO_EXPLORER, genlayerChain } from "@bench/core/browser";
 import { genlayer } from "@bench/core";
 import { Container, PageHero } from "@/components/site/blocks";
 import { ArrowUpRight } from "@/components/site/icons";
@@ -12,7 +12,7 @@ export const revalidate = 60;
 
 type Row = { name: string; network: string; address?: string; href?: string; state: "live" | "missing" | "pending" | "unknown"; detail: string };
 
-const STUDIO_B = "0x6E7aB064add7eE67Ba1cEd35BC496293c65515f0";
+const STUDIO_B = "0x764911B11Bf6b8C0C41bb7503fA0e9c2025e65B3"; // BenchJudgeB (Plan B), deployments/plan-b-studionet.json
 
 async function codeAt(rpc: "4221" | "base", address: Address): Promise<boolean | undefined> {
   try {
@@ -24,9 +24,9 @@ async function codeAt(rpc: "4221" | "base", address: Address): Promise<boolean |
   }
 }
 
-async function judgeCases(address: Address, network: "studionet" | "bradbury"): Promise<number | undefined> {
+async function judgeCases(address: Address, network: "studionet" | "bradbury", fn = "case_count"): Promise<number | undefined> {
   try {
-    return Number(await genlayer({ network }).client.readContract({ address, functionName: "case_count", args: [] }));
+    return Number(await genlayer({ network }).client.readContract({ address, functionName: fn, args: [] }));
   } catch {
     return undefined;
   }
@@ -35,7 +35,7 @@ async function judgeCases(address: Address, network: "studionet" | "bradbury"): 
 export default async function Status() {
   const studio = PUBLIC.judgeStudionet;
   const [studioCases, studioBCases, a4221, aBase, bradburyCases] = await Promise.all([
-    studio ? judgeCases(studio, "studionet") : Promise.resolve(undefined),
+    studio ? judgeCases(studio, "studionet", "preview_count") : Promise.resolve(undefined),
     judgeCases(STUDIO_B, "studionet"),
     codeAt("4221", PUBLIC.alkahest.trustedOracleArbiter),
     codeAt("base", ALKAHEST_BASE_SEPOLIA.trustedOracleArbiter),
@@ -47,7 +47,7 @@ export default async function Status() {
       name: "BenchJudge",
       network: "Testnet Bradbury",
       address: PUBLIC.judge,
-      href: PUBLIC.judge && `https://explorer-bradbury.genlayer.com/address/${PUBLIC.judge}`,
+      href: PUBLIC.judge && `${BRADBURY_EXPLORER}/address/${PUBLIC.judge}`,
       state: PUBLIC.judge ? (bradburyCases === undefined ? "unknown" : "live") : "pending",
       detail: PUBLIC.judge ? `${bradburyCases ?? "?"} cases` : "Not configured for this deployment",
     },
@@ -55,15 +55,15 @@ export default async function Status() {
       name: "BenchJudge (free preview sandbox)",
       network: "GenLayer Studionet",
       address: studio,
-      href: studio && `https://explorer-studio.genlayer.com/address/${studio}`,
+      href: studio && `${STUDIO_EXPLORER}/address/${studio}`,
       state: studioCases === undefined ? "unknown" : "live",
-      detail: studioCases === undefined ? "Couldn't reach Studionet" : `${studioCases} cases`,
+      detail: studioCases === undefined ? "Couldn't reach Studionet" : `${studioCases} previews`,
     },
     {
       name: "BenchJudgeB (Plan B)",
       network: "GenLayer Studionet → Base Sepolia",
       address: STUDIO_B,
-      href: `https://explorer-studio.genlayer.com/address/${STUDIO_B}`,
+      href: `${STUDIO_EXPLORER}/address/${STUDIO_B}`,
       state: studioBCases === undefined ? "unknown" : "live",
       detail: studioBCases === undefined ? "Couldn't reach Studionet" : `${studioBCases} cases`,
     },
@@ -71,7 +71,7 @@ export default async function Status() {
       name: "Alkahest TrustedOracleArbiter",
       network: "GenLayer Chain 4221",
       address: PUBLIC.alkahest.trustedOracleArbiter,
-      href: `https://explorer.testnet-chain.genlayer.com/address/${PUBLIC.alkahest.trustedOracleArbiter}`,
+      href: `${GENLAYER_CHAIN_EXPLORER}/address/${PUBLIC.alkahest.trustedOracleArbiter}`,
       state: a4221 === undefined ? "unknown" : a4221 ? "live" : "missing",
       detail: a4221 ? "Contract code present" : "No code at the published address; needs pnpm deploy:alkahest",
     },

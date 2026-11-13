@@ -1,5 +1,5 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { ArrowUpRight, Close } from "@/components/site/icons";
 import { Mark } from "@/components/site/Logo";
@@ -13,16 +13,32 @@ const GET_A_WALLET = [
 
 export function ConnectModal() {
   const { modalOpen, closeModal, wallets, connect, status, error } = useWallet();
+  const dialog = useRef<HTMLDivElement>(null);
 
+  // Modal behaviour: Escape closes, focus moves in and stays in (Tab cycles), and returns to where it was on close.
   useEffect(() => {
     if (!modalOpen) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && closeModal();
+    const before = document.activeElement as HTMLElement | null;
+    const focusables = () =>
+      Array.from(dialog.current?.querySelectorAll<HTMLElement>("button:not([disabled]), a[href]") ?? []);
+    requestAnimationFrame(() => (focusables()[1] ?? focusables()[0])?.focus()); // first wallet, else Close
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") return closeModal();
+      if (e.key !== "Tab") return;
+      const els = focusables();
+      if (!els.length) return;
+      const first = els[0]!;
+      const last = els[els.length - 1]!;
+      if (e.shiftKey && document.activeElement === first) (e.preventDefault(), last.focus());
+      else if (!e.shiftKey && document.activeElement === last) (e.preventDefault(), first.focus());
+    };
     window.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
+      before?.focus?.();
     };
   }, [modalOpen, closeModal]);
 
@@ -30,6 +46,7 @@ export function ConnectModal() {
   return createPortal(
     <div className="fixed inset-0 z-[60] flex items-end justify-center bg-ink/40 p-0 backdrop-blur-sm sm:items-center sm:p-6" onClick={closeModal}>
       <div
+        ref={dialog}
         role="dialog"
         aria-modal="true"
         aria-label="Connect a wallet"
@@ -91,7 +108,11 @@ export function ConnectModal() {
           </div>
         )}
 
-        {error && <p className="mt-4 rounded-xl bg-[#fdecea] px-4 py-3 text-sm text-fail">{error}</p>}
+        {error && (
+          <p role="alert" className="mt-4 rounded-xl bg-[#fdecea] px-4 py-3 text-sm text-fail">
+            {error}
+          </p>
+        )}
         <p className="mt-6 text-xs leading-relaxed text-faint">
           Testnet only. Connecting shares your address with this site; transactions always need your approval in the wallet.
         </p>

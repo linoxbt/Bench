@@ -4,18 +4,18 @@
  *  2. probe: emits TrustedOracleArbiter.arbitrate(dummyUid, 0x, true); after FINALIZED, an ArbitrationMade
  *     event with oracle == the probe's own address must appear on GenLayer Chain. That proves Plan A:
  *     EVM writes from GenVM execute, and msg.sender is the Intelligent Contract itself.
- * Env: GENLAYER_KEY. Takes as long as Bradbury finality (~30 min).
+ * Env: GENLAYER_KEY. Takes as long as Bradbury finality (a few minutes).
  */
 import { readFileSync } from "node:fs";
 import { createPublicClient, http, keccak256, parseAbiItem, toHex } from "viem";
 import { TransactionStatus } from "genlayer-js/types";
-import { ALKAHEST_BRADBURY, ARBITRATE_SELECTOR, feesFor, genlayer, genlayerChain, genvmTxUrl } from "../packages/core/src/index.js";
+import { ALKAHEST_BRADBURY, ARBITRATE_SELECTOR, feesFor, genlayer, genlayerChain, genvmTxUrl, waitTx } from "../packages/core/src/index.js";
 
 const key = process.env.GENLAYER_KEY;
 if (!key) throw new Error("Set GENLAYER_KEY");
 const gl = genlayer({ privateKey: (key.startsWith("0x") ? key : `0x${key}`) as `0x${string}`, network: "bradbury" });
 const wait = (hash: string, status: TransactionStatus) =>
-  gl.client.waitForTransactionReceipt({ hash: hash as never, status, retries: 720, interval: 5000 });
+  waitTx(gl, hash as `0x${string}`, status === TransactionStatus.FINALIZED ? "FINALIZED" : "ACCEPTED");
 
 const code = readFileSync(new URL("../contracts/probe/gate_probe.py", import.meta.url), "utf8");
 const deployTx = await gl.client.deployContract({ account: gl.account, code, args: [ALKAHEST_BRADBURY.trustedOracleArbiter, ALKAHEST_BRADBURY.eas], fees: await feesFor(gl) });

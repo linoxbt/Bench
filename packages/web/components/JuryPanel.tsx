@@ -1,9 +1,10 @@
 import type { Jury } from "@bench/core";
+import { AppealCountdown } from "./AppealCountdown";
 import { Hash } from "./ui";
 
 const STAGES = ["PENDING", "PROPOSING", "COMMITTING", "REVEALING", "ACCEPTED", "FINALIZED"] as const;
 
-export function LifecycleBar({ status }: { status: string }) {
+export function LifecycleBar({ status, appealDeadline }: { status: string; appealDeadline?: number }) {
   const s = status.toUpperCase();
   const idx = STAGES.indexOf(s as (typeof STAGES)[number]);
   const appeal = s.startsWith("APPEAL");
@@ -25,6 +26,7 @@ export function LifecycleBar({ status }: { status: string }) {
         {s === "ACCEPTED" && " (verdict reached; appeal window open, not final yet)"}
         {appeal && " (a larger jury is re-judging)"}
       </p>
+      {s === "ACCEPTED" && appealDeadline ? <AppealCountdown deadline={appealDeadline} /> : null}
     </div>
   );
 }
@@ -43,7 +45,7 @@ export function JuryPanel({ jury }: { jury: Jury }) {
   const hasModels = jury.votes.some((v) => v.model);
   return (
     <div className="space-y-5">
-      <LifecycleBar status={jury.status} />
+      <LifecycleBar status={jury.status} appealDeadline={jury.appealDeadline} />
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {jury.votes.map((v, i) => {
           const st = VOTE_STYLE[v.vote] ?? { label: v.vote, cls: "text-ink" };

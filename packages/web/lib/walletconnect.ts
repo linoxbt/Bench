@@ -52,7 +52,13 @@ export function walletConnectProvider(): (EIP1193Provider & { disconnect(): Prom
   const provider = {
     async request(args: { method: string; params?: unknown }) {
       const wc = await load();
-      if (args.method === "eth_requestAccounts" && !wc.session) await wc.connect(); // opens the QR modal
+      if (args.method === "eth_requestAccounts" && !wc.session) {
+        // Opens the QR modal. Bounded, so closing the modal without scanning can't leave the UI on "connecting".
+        await Promise.race([
+          wc.connect(),
+          new Promise((_, reject) => setTimeout(() => reject(Object.assign(new Error("WalletConnect: no wallet connected (closed or timed out)."), { code: 4001 })), 5 * 60_000)),
+        ]);
+      }
       if (args.method === "eth_accounts" && !wc.session) return [];
       return wc.request(args);
     },

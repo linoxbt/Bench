@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { formatUnits, parseAbi, parseUnits } from "viem";
 import { ArrowUpRight } from "@/components/site/icons";
+import { waitConfirmed } from "@bench/core/browser";
 import { addressUrl, publicClient, txUrl } from "@/lib/chain";
 import { PUBLIC } from "@/lib/config";
 import { Avatar } from "./Avatar";
@@ -104,7 +105,7 @@ function AccountMenu({ onClose, align }: { onClose: () => void; align: "left" | 
         functionName: "mint",
         args: [w.address!, parseUnits("100", token?.decimals ?? 18)],
       });
-      await publicClient.waitForTransactionReceipt({ hash });
+      await waitConfirmed(publicClient, hash, "Mint");
       setMsg({ text: `Minted 100 ${token?.symbol ?? "bUSD"}.`, href: txUrl(hash) });
       refresh();
     } catch (e) {

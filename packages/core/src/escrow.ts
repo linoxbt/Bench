@@ -8,14 +8,15 @@ import {
   type Address,
   type Chain,
   type Hex,
+  type PublicClient,
   type Transport,
   type WalletClient,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { BENCH_PLAN, escrowChain } from "./chains.js";
 import { ALKAHEST_BASE_SEPOLIA, ALKAHEST_BRADBURY, BENCH_JUDGE } from "./addresses.js";
-import { decodeOracleDemand, encodeBenchDemand, type BenchDemand } from "./demand.js";
-import { findArbitration, revealWhenReady } from "./lite.js";
+import { decodeOracleDemand, demandProblems, encodeBenchDemand, type BenchDemand } from "./demand.js";
+import { deliverLite, findArbitration, waitConfirmed, type SavedCommit } from "./lite.js";
 
 export type BenchWallet = WalletClient<Transport, Chain, Account>;
 
@@ -74,6 +75,9 @@ export async function createEscrow(
   cfg: BenchConfig = defaultConfig(),
 ): Promise<CreatedEscrow> {
   if (expiration === 0n) throw new Error("expiration 0 disables reclaim; set an expiry (see README, Expiry rule)");
+  const problems = demandProblems(d);
+  if (problems.length) throw new Error(problems.join(" "));
+  if (amount <= 0n) throw new Error("Amount must be greater than zero.");
   const client = alkahest(wallet, cfg);
   const { hash, attested } = await client.erc20.escrow.default.approveAndCreate(
     { address: token, value: amount },
@@ -85,23 +89,27 @@ export async function createEscrow(
 
 export type Delivered = { fulfillmentUid: Hex; commitment: Hex; commitHash: Hex; revealHash: Hex };
 
-/** Seller: Arkhai's commit-reveal fulfilment (same flow as `nla escrow:fulfill`). */
-export async function fulfill(wallet: BenchWallet, escrowUid: Hex, delivery: string, cfg: BenchConfig = defaultConfig()): Promise<Delivered> {
-  const client = alkahest(wallet, cfg);
-  const data = {
-    payload: toHex(delivery),
-    salt: keccak256(toHex(crypto.randomUUID())),
-    schema: DELIVERY_SCHEMA,
-  };
-  const commitment = (await client.commitReveal.computeCommitment(escrowUid, wallet.account.address, data)) as Hex;
-  const { hash: commitHash } = await client.commitReveal.commit(commitment, COMMIT_BOND_WEI, COMMIT_WINDOW_SECONDS);
-  // CommitRevealObligation rejects a reveal in the same block as its commit (CommitmentTooRecent),
-  // and doObligation is simulated against the latest block, so wait for a newer one first.
-  const committed = await client.viemClient.waitForTransactionReceipt({ hash: commitHash });
-  const { hash: revealHash, attested } = await revealWhenReady(client.viemClient, committed.blockNumber, () =>
-    client.commitReveal.doObligation(data, escrowUid),
-  );
-  return { fulfillmentUid: attested.uid as Hex, commitment, commitHash, revealHash };
+/**
+ * Seller: Arkhai's commit-reveal fulfilment (same flow as `nla escrow:fulfill`), through the same resumable path the
+ * web app uses. `opts.saved` resumes an interrupted delivery; `opts.onSaved` gets the record to persist (the salt).
+ */
+export async function fulfill(
+  wallet: BenchWallet,
+  escrowUid: Hex,
+  delivery: string,
+  cfg: BenchConfig = defaultConfig(),
+  opts: { saved?: SavedCommit; onSaved?: (s: SavedCommit) => void } = {},
+): Promise<Delivered> {
+  const pub = alkahest(wallet, cfg).viemClient as unknown as PublicClient;
+  let commitment = opts.saved?.commitment;
+  const res = await deliverLite(wallet, pub, cfg.addresses, escrowUid, delivery, undefined, {
+    saved: opts.saved,
+    onSaved: (s) => {
+      commitment = s.commitment;
+      opts.onSaved?.(s);
+    },
+  });
+  return { fulfillmentUid: res.fulfillmentUid, commitment: commitment!, commitHash: res.commitHash, revealHash: res.revealHash };
 }
 
 /** Whether the seller's commit bond has been returned or slashed. */
@@ -163,34 +171,55 @@ export async function requestArbitration(
 ): Promise<{ hash?: Hex; skipped?: string }> {
   try {
     const { oracle, demandData } = await getEscrow(wallet, escrowUid, cfg);
-    const hash = await alkahest(wallet, cfg).arbiters.general.trustedOracle.requestArbitration(fulfillmentUid, oracle, demandData);
+    const client = alkahest(wallet, cfg);
+    const hash = await client.arbiters.general.trustedOracle.requestArbitration(fulfillmentUid, oracle, demandData);
+    // Wait for it, so a GenLayer tx from the same key can't race it for the nonce.
+    await waitConfirmed(client.viemClient as unknown as PublicClient, hash, "requestArbitration");
     return { hash };
   } catch (e) {
     return { skipped: e instanceof Error ? e.message.split("\n")[0] : String(e) };
   }
 }
 
-export type Arbitration = { decision: boolean; oracle: Address } | undefined;
+/** The verdict on Alkahest: the oracle's decision and the tx that delivered it (ArbitrationMade). */
+export type Arbitration = { decision: boolean; oracle: Address; txHash: Hex } | undefined;
 
-/** The verdict BenchJudge sent to Alkahest, if it has landed (after GenLayer finality). */
-export async function getArbitration(wallet: BenchWallet, escrowUid: Hex, fulfillmentUid: Hex, cfg: BenchConfig = defaultConfig()): Promise<Arbitration> {
-  const { oracle, demandData, createdAt } = await getEscrow(wallet, escrowUid, cfg);
+/**
+ * The verdict BenchJudge sent to Alkahest, if it has landed (after GenLayer finality): the latest ArbitrationMade
+ * from the escrow's oracle. Pass `escrow` if you already read it.
+ */
+export async function getArbitration(
+  wallet: BenchWallet,
+  escrowUid: Hex,
+  fulfillmentUid: Hex,
+  cfg: BenchConfig = defaultConfig(),
+  escrow?: EscrowInfo,
+): Promise<Arbitration> {
+  const { oracle, demandData, createdAt } = escrow ?? (await getEscrow(wallet, escrowUid, cfg));
   // A verdict can only follow the escrow, so scan from its creation (a full-chain scan takes seconds on Bradbury).
   return findArbitration(alkahest(wallet, cfg).viemClient, cfg.addresses.trustedOracleArbiter, fulfillmentUid, oracle, demandData, createdAt);
 }
 
-/** Wait until BenchJudge's arbitrate() lands on Alkahest, or time out. */
+/** Poll until BenchJudge's arbitrate() lands on Alkahest, or time out (undefined). RPC errors are retried. */
 export async function waitForVerdict(
   wallet: BenchWallet,
   escrowUid: Hex,
   fulfillmentUid: Hex,
   timeoutMs = 60 * 60 * 1000,
   cfg: BenchConfig = defaultConfig(),
+  intervalMs = 10_000,
 ): Promise<Arbitration> {
-  const { oracle, demandData } = await getEscrow(wallet, escrowUid, cfg);
-  const wait = alkahest(wallet, cfg)
-    .arbiters.general.trustedOracle.waitForArbitration(fulfillmentUid, oracle, demandData, 10_000)
-    .then((r) => (r.decision === undefined ? undefined : { decision: r.decision, oracle: (r.oracle ?? oracle) as Address }));
-  const timeout = new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), timeoutMs).unref?.());
-  return Promise.race([wait, timeout]);
+  const deadline = Date.now() + timeoutMs;
+  let escrow: EscrowInfo | undefined;
+  for (;;) {
+    try {
+      escrow ??= await getEscrow(wallet, escrowUid, cfg);
+      const found = await getArbitration(wallet, escrowUid, fulfillmentUid, cfg, escrow);
+      if (found) return found;
+    } catch {
+      /* a flaky RPC read: try again next round */
+    }
+    if (Date.now() + intervalMs > deadline) return undefined;
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
 }

@@ -101,11 +101,17 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     };
     const onChain = (c: unknown) => setChainId(parseInt(String(c), 16));
     const p = w.provider as EIP1193Provider & { on?: Function; removeListener?: Function };
+    // The wallet ended the session (e.g. disconnected from the phone in WalletConnect): treat it as a disconnect.
+    const onDisconnect = () => onAccounts([]);
     p.on?.("accountsChanged", onAccounts);
     p.on?.("chainChanged", onChain);
+    p.on?.("disconnect", onDisconnect);
+    (p.on as ((e: string, f: () => void) => void) | undefined)?.("session_delete", onDisconnect);
     detached.current = () => {
       p.removeListener?.("accountsChanged", onAccounts);
       p.removeListener?.("chainChanged", onChain);
+      p.removeListener?.("disconnect", onDisconnect);
+      (p.removeListener as ((e: string, f: () => void) => void) | undefined)?.("session_delete", onDisconnect);
     };
   }, []);
 
@@ -227,6 +233,7 @@ export function errorText(e: unknown): string {
   const any = e as { shortMessage?: string; message?: string; code?: number };
   if (any?.code === 4001) return "You rejected the request in your wallet.";
   const msg = any?.shortMessage ?? any?.message ?? String(e);
+  if (/does not match|account.*mismatch|from address/i.test(msg)) return "Your wallet switched accounts mid-way. Start this step again with the account you want.";
   return msg.split("\n")[0]!;
 }
 

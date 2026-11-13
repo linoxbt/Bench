@@ -40,9 +40,10 @@ def hexaddr(b: bytes) -> str:
     return "0x" + b.hex()
 
 
-def nla_demand(demand: str, rubric: str = "") -> bytes:
-    """Arkhai NLA demand: (arbitrationProvider, arbitrationModel, arbitrationPrompt, demand)."""
-    return abi_encode(["(string,string,string,string)"], [("GenLayer", "bench-jury-v1", rubric, demand)])
+def nla_demand(demand: str, rubric: str = "", model: str = "bench-jury-v1") -> bytes:
+    """Arkhai NLA demand: (arbitrationProvider, arbitrationModel, arbitrationPrompt, demand).
+    Bench terms ride in the model string, e.g. "bench-jury-v1;seller=0x...;tries=2"."""
+    return abi_encode(["(string,string,string,string)"], [("GenLayer", model, rubric, demand)])
 
 
 def oracle_demand(oracle: bytes, data: bytes) -> bytes:
@@ -56,6 +57,8 @@ class Attestation:
     attester: bytes
     ref_uid: bytes = b"\x00" * 32
     revocation_time: int = 0
+    expiration_time: int = 0
+    recipient: bytes = SELLER
     data: bytes = b""
 
 
@@ -68,16 +71,23 @@ class FakeAlkahest:
     calls: int = 0
 
     # ---- builders ----
-    def new_escrow(self, oracle: bytes, demand: str, rubric: str = "", arbiter: bytes = ARBITER) -> str:
+    def new_escrow(
+        self, oracle: bytes, demand: str, rubric: str = "", arbiter: bytes = ARBITER, model: str = "bench-jury-v1",
+        expires: int = 0,
+    ) -> str:
         uid = os.urandom(32)
-        demand_blob = oracle_demand(oracle, nla_demand(demand, rubric))
+        demand_blob = oracle_demand(oracle, nla_demand(demand, rubric, model))
         self.escrows[uid] = (arbiter, demand_blob)
-        self.attestations[uid] = Attestation(uid=uid, attester=ESCROW)
+        self.attestations[uid] = Attestation(uid=uid, attester=ESCROW, expiration_time=expires, recipient=BUYER)
         return "0x" + uid.hex()
 
-    def new_delivery(self, escrow_uid: str, text: str, attester: bytes = COMMIT_REVEAL) -> str:
+    def new_delivery(
+        self, escrow_uid: str, text: str, attester: bytes = COMMIT_REVEAL, recipient: bytes = SELLER, expires: int = 0
+    ) -> str:
         uid = os.urandom(32)
-        self.attestations[uid] = Attestation(uid=uid, attester=attester, ref_uid=bytes.fromhex(escrow_uid[2:]))
+        self.attestations[uid] = Attestation(
+            uid=uid, attester=attester, ref_uid=bytes.fromhex(escrow_uid[2:]), recipient=recipient, expiration_time=expires
+        )
         self.deliveries[uid] = text.encode()
         return "0x" + uid.hex()
 
@@ -96,7 +106,7 @@ class FakeAlkahest:
             return abi_encode(["(bytes,bytes32,bytes32)"], [(self.deliveries[uid], b"\x01" * 32, keccak(text="{item:string}"))])
         if address == EAS and sel == SEL_GET_ATTESTATION:
             a = self.attestations.get(uid) or Attestation(uid=b"\x00" * 32, attester=b"\x00" * 20)
-            row = (a.uid, b"\x00" * 32, 1, 0, a.revocation_time, a.ref_uid, hexaddr(SELLER), hexaddr(a.attester), True, a.data)
+            row = (a.uid, b"\x00" * 32, 1, a.expiration_time, a.revocation_time, a.ref_uid, hexaddr(a.recipient), hexaddr(a.attester), True, a.data)
             return abi_encode([ATTESTATION_T], [row])
         raise AssertionError(f"unexpected EthCall to 0x{address.hex()} selector 0x{sel.hex()}")
 

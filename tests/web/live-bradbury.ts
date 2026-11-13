@@ -120,6 +120,7 @@ try {
   await page.fill("textarea >> nth=0", DEMAND.demand);
   await page.fill("textarea >> nth=1", DEMAND.rubric);
   await page.fill("input >> nth=0", "5");
+  await page.fill('input[placeholder="0x… (the seller\'s wallet)"]', account.address); // hired work: name the seller
   await page.click('button:has-text("Approve & lock escrow")');
   await page.waitForSelector("text=Escrow locked", { timeout: 180_000 });
   const escrowUid = (await page.getAttribute('p:has-text("escrowUid") span[title]', "title"))!;
