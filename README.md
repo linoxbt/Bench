@@ -191,7 +191,8 @@ block shared verbatim by all three judges (a test fails if they drift).
   transactions (BenchJudge) are on `explorer-bradbury.genlayer.com`, which shows nothing for an EVM hash.
 - **The appeal window is short.** On Bradbury it closed about 60 s after ACCEPTED (from the consensus contract's lifecycle view,
   which the jury panel reads for its countdown). Appeal right away or not at all.
-- **An appeal can freeze a contract's finality queue** ([deployments/appeal-bradbury.json](deployments/appeal-bradbury.json)).
+- **An appeal can freeze a contract's finality queue** ([bug report](docs/genlayer-bug-appeal-freeze.md),
+  [deployments/appeal-bradbury.json](deployments/appeal-bradbury.json)).
   We appealed a borderline preview (bond 0.05 GEN). The appeal round of 13 validators agreed and the tx went back to ACCEPTED,
   and the lifecycle view then reported it ready to finalize, but `finalizeTransaction` reverted (`0x0c35bf69`) and
   `finalizeDecisions` skipped it. Transactions to one contract finalize in order, so every later case on that BenchJudge stayed
