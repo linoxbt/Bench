@@ -85,7 +85,10 @@ export async function waitTx(
     try {
       const tx = await gl.client.getTransaction({ hash: hash as never });
       last = statusOf(tx);
-      if ((FAILED_STATUSES as readonly string[]).includes(last)) throw Object.assign(new Error(`GenLayer consensus ended ${last} (tx ${hash}).`), { final: true });
+      // Waiting for ACCEPTED, a failed outcome ends the wait. Waiting for FINALIZED it doesn't: an appeal round whose
+      // leader times out shows LEADER_TIMEOUT for a while and then finalizes (seen on Bradbury), so only CANCELED is final.
+      const failed = target === "FINALIZED" ? last === "CANCELED" : (FAILED_STATUSES as readonly string[]).includes(last);
+      if (failed) throw Object.assign(new Error(`GenLayer consensus ended ${last} (tx ${hash}).`), { final: true });
       if (last === "FINALIZED" || (target === "ACCEPTED" && last === "ACCEPTED")) return tx;
     } catch (e) {
       if ((e as { final?: boolean }).final) throw e;
@@ -172,14 +175,30 @@ export async function preview(gl: GenLayer, caseId: string, demand: string, deli
   const err = executionError(receipt);
   if (err) throw new Error(`preview failed: ${err} (tx ${hash})`);
   const caseKey = `preview:${caseId}`;
-  const c = await getCase(gl, caseKey, judge);
+  const c = await getCaseSettled(gl, caseKey, judge);
   if (!c) throw new Error(`The jury produced no verdict (${receipt.txExecutionResultName ?? statusOf(receipt)}; tx ${hash}).`);
   return { hash, receipt, caseKey, case: c };
 }
 
-/** Wait for FINALIZED (the appeal window has closed and arbitrate() executes). */
+/**
+ * Wait for FINALIZED (the appeal window has closed and arbitrate() executes). A finalized transaction can still carry
+ * no verdict (e.g. the only round timed out): read the case with getCase(..., { final: true }) afterwards.
+ */
 export async function waitFinal(gl: GenLayer, hash: Hex, timeoutMs = 60 * 60_000, intervalMs = 5000) {
   return waitTx(gl, hash, "FINALIZED", timeoutMs, intervalMs);
+}
+
+/**
+ * getCase, retried for up to `timeoutMs` while it reads nothing: Bradbury's load-balanced RPC can answer from a node that
+ * hasn't applied a just-ACCEPTED transaction yet.
+ */
+export async function getCaseSettled(gl: GenLayer, caseId: string, judge: Address = BENCH_JUDGE, timeoutMs = 60_000) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const c = await getCase(gl, caseId, judge).catch(() => undefined);
+    if (c || Date.now() > deadline) return c;
+    await new Promise((r) => setTimeout(r, 3000));
+  }
 }
 
 export async function getTx(gl: GenLayer, hash: Hex): Promise<GenLayerTransaction> {

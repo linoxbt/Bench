@@ -25,6 +25,7 @@ import {
   genvmTxUrl,
   getArbitration,
   getCase,
+  getCaseSettled,
   getEscrow,
   getTx,
   juryFromTx,
@@ -237,7 +238,7 @@ program
       arbiter: defaultConfig().addresses.trustedOracleArbiter,
       onSubmitted: (h) => note(`Case submitted: ${genvmTxUrl(h, net)} (waiting for the jury...)`),
     });
-    const c = await getCase(gl, f, judge);
+    const c = await getCaseSettled(gl, f, judge, 30_000);
     print(
       `Case ACCEPTED: the jury has a verdict, but the appeal window is open, so it isn't final yet.\n  GenLayer tx  ${genvmTxUrl(hash, net)}\n  verdict     ${c ? (c.fulfilled ? "FULFILLED" : "NOT FULFILLED") : "pending"}${c?.reason ? ` (leader's reason: ${c.reason})` : ""}\n  requestArbitration  ${requested.hash ? escrowTxUrl(requested.hash) : `skipped (${requested.skipped})`}\n${BENCH_PLAN === "b" ? "The relayer (or bridge) delivers it to Alkahest after FINALIZED:" : "The verdict reaches Alkahest only after FINALIZED:"} bench status --escrow ${e} --fulfillment ${f} --tx ${hash} --wait`,
       { hash, status: accepted.statusName, case: c, requestArbitration: requested },
@@ -274,7 +275,8 @@ program
     const reader = readerWallet();
     const escrow = await getEscrow(reader, e);
     let landed = await getArbitration(reader, e, f, defaultConfig(), escrow);
-    if (!landed && o.wait && (latest || tx)) {
+    const finalNoVerdict = Boolean(o.wait && tx && jury?.status === "FINALIZED" && !final && !genlayerError);
+    if (!landed && o.wait && (latest || tx) && !finalNoVerdict) {
       note("Waiting for the verdict to land on Alkahest...");
       landed = await waitForVerdict(reader, e, f, int(o.timeout, "timeout", 1, 24 * 60) * 60_000);
     }
@@ -286,7 +288,9 @@ program
         ? `Case: couldn't read the judge (${genlayerError})`
         : c
           ? `Case: ${finality} - ${c.fulfilled ? "FULFILLED" : "NOT FULFILLED"} (leader's reason: ${c.reason})\n  rubric: ${c.rubric || "(default: every explicit requirement must be met)"}`
-          : "Case: not opened yet (bench judge ...)",
+          : finalNoVerdict
+            ? `Case: the transaction FINALIZED without a verdict (e.g. an appeal round timed out), so nothing was recorded. Open it again: bench judge --escrow ${e} --fulfillment ${f}`
+            : "Case: not opened yet (bench judge ...)",
       jury ? `Jury: ${jury.status}, round ${jury.round}, ${jury.agree}/${jury.total} validators agreed with the leader` : "Jury: pass --tx <hash> to see validator votes",
       landed
         ? `Alkahest: verdict landed (${landed.decision ? "true: seller may collect" : "false: buyer may reclaim after expiry"}), tx ${escrowTxUrl(landed.txHash)}`

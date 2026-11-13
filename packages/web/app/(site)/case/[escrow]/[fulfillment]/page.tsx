@@ -193,7 +193,14 @@ export default async function CasePage({
           ) : view.refusal ? (
             <Note tone="fail">BenchJudge won&apos;t hear this case: {view.refusal.replace(/^\[\w+\]\s*/, "")}</Note>
           ) : canJudge ? (
-            <JudgeButton escrowUid={e} fulfillmentUid={f} />
+            <div className="space-y-3">
+              {jury?.status === "FINALIZED" && (
+                <Note tone="warn">
+                  That transaction finalized without a verdict (for example, an appeal round timed out), so nothing was recorded. Open the case again.
+                </Note>
+              )}
+              <JudgeButton escrowUid={e} fulfillmentUid={f} />
+            </div>
           ) : (
             <Note>This case can&apos;t be opened: the escrow is {settled ? "settled" : expired ? "expired" : "not judged by BenchJudge"}.</Note>
           )}
